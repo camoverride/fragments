@@ -1,0 +1,12 @@
+# Name of the display server protocol.
+# Find this with the terminal command: `echo $WAYLAND_DISPLAY`
+display_name: wayland-0
+
+# Name of the HDMI output port.
+# Find this with the terminal command: `wlr-randr` or `xrandr --query`
+display_output: HDMI-A-1
+# Which output (only needed for Ubuntu) - `xrandr --query | grep " connected" | awk '{print $1}'`
+output_cable: HDMI-1
+
+# How much to rotate the monitor
+rotation: 90
