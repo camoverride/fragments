@@ -1,6 +1,5 @@
 from collections import Counter
 from datetime import datetime
-import os
 import threading
 import uuid
 import yaml
@@ -11,7 +10,7 @@ import numpy as np
 from pipeline_utils import get_faces_from_webcam, face_processing_pipeline, morph_faces, \
 is_face_centered
 from database_utils import query_embeddings_in_chunks, insert_embedding, read_face_list, \
-insert_face_mapping, get_most_recent_row, query_recent_landmarks
+insert_face_mapping, get_most_recent_row, query_recent_landmarks, get_recent_embeddings
 from utils_from_ff import get_face_landmarks, get_additional_landmarks, morph_align_face, \
     create_composite_image
 
@@ -32,6 +31,9 @@ def collect_faces(embeddings_db : str,
                            b : float,
                            triangulation_indexes : list,
                            debug : bool):
+    """
+    
+    """
     while True:
         # Get an image from the webcam along with face bounding boxes.
         frame, bbs = get_faces_from_webcam(debug=debug)
@@ -39,21 +41,14 @@ def collect_faces(embeddings_db : str,
         # If bbs exists, then faces have been detected.
         if bbs:
             # There might be multiple faces in the image.
-            # NOTE: only go through at most 2 faces.
-
-
-
-
-            for bb in bbs[:2]:
+            for bb in bbs:
                 # Check if face is near the center of the image.
+                # TODO: implement this.
                 if is_face_centered(bb):
                     print("CENTERED")
-                
-                
+
                 # Check for blur using Laplacian Variance
-
-
-
+                # TODO: implement this.
 
                 # Try/except because sometimes there are processing errors.
                 try:
@@ -81,21 +76,21 @@ def collect_faces(embeddings_db : str,
 
                     # If the face was able to be successfully embedded
                     if new_face_embedding:
+
                         # Get the face embedding.
-                        # TODO: why index with [0]?
-                        new_face_embedding = new_face_embedding[0]
+                        new_face_embedding = new_face_embedding[0] # TODO: why index with [0]?
 
                         face_seen_before = False
 
-                        # Check if the face has been seen before.
-                        for embeddings_chunk in \
-                            query_embeddings_in_chunks(db_path=embeddings_db,
-                                                       chunk_size=chunk_size):
-                            results = face_recognition.compare_faces(embeddings_chunk,
-                                                                     new_face_embedding,
-                                                                     tolerance=tolerance)
-                            if any(results):
-                                face_seen_before = True
+                        # Check if the face has been seen in the last `num_embeddings` of faces
+                        recent_embeddings = get_recent_embeddings(db_path="face_embeddings.db",
+                                                                  num_embeddings=6)
+                        
+                        results = face_recognition.compare_faces(recent_embeddings,
+                                                                 new_face_embedding,
+                                                                 tolerance=tolerance)
+                        if any(results):
+                            face_seen_before = True
 
                         # If the face has not been seen before, proceed.
                         if face_seen_before == False:

@@ -236,6 +236,33 @@ def query_embeddings_in_chunks(db_path : str,
     conn.close()
 
 
+def get_recent_embeddings(db_path : str,
+                          num_embeddings : int):
+    """
+
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    query = """
+    SELECT embedding
+    FROM face_embeddings
+    ORDER BY ID DESC
+    LIMIT ?
+    """
+    cursor.execute(query, (num_embeddings,))
+
+    embeddings = cursor.fetchall()
+
+    # Deserialize embeddings and process them
+    embeddings = [pickle.loads(embedding[0]) for embedding in embeddings]
+
+    conn.close()
+
+    return embeddings
+
+
+
 def read_face_list(db_path: str) -> List[tuple]:
     """
     Reads the database and returns a list of all the faces.
