@@ -1,0 +1,798 @@
+from typing import List
+import cv2
+import mediapipe as mp
+import numpy as np
+from typing import Tuple
+import random
+
+# Initialize Mediapipe FaceMesh with iris detection
+# mp_face_mesh = mp.solutions.face_mesh
+# face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, refine_landmarks=True)
+
+
+
+# Initialize MediaPipe Face Detection
+# TODO: is refine landmarks necessary? Does it use too much compute?
+# Harmonize this with other face mesh calls.
+face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True,
+                                               max_num_faces=1,
+                                               refine_landmarks=True,
+                                               min_detection_confidence=0.5)
+face_detection = mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5)
+
+
+def get_face_landmarks(image : np.ndarray) -> List[List[int]]:
+    """
+    Accepts an image and returns the landmarks for a face in the image.
+    The image should contain a face, already cropped with a margin.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        An image containing a face.
+    
+    Returns
+    -------
+    List[List[int]]
+    TODO: is it a float or an int?
+        A list of the tuples of all the landmark locations, [(34.1, 16.6), ...]
+    """
+    # Process the image to get the landmarks
+    results = face_mesh.process(image)
+
+    # Extract the facial landmarks
+    height, width, _ = image.shape
+    facial_landmarks = []
+    res = results.multi_face_landmarks
+
+    # If there are landmarks, collect their coordinates.
+    if res:
+        for face_landmarks in res:
+            for landmark in face_landmarks.landmark:
+                x = int(landmark.x * width)
+                y = int(landmark.y * height)
+                facial_landmarks.append([x, y])
+
+    # Else return an empty list
+    else:
+        return []
+
+    return facial_landmarks
+
+
+def get_additional_landmarks(image_height : int,
+                             image_width : int) -> List[List[int]]:
+    """
+    Adds additional landmarks to an image. These landmarks are
+    around the edges of the image. This helps with morphing so
+    that the entire image can be tiled with delauney triangles.
+
+    Parameters
+    ----------
+    image_height : int
+        The height of the image in pixels.
+    image_width : int
+        The width of the image in pixels.
+
+    Returns
+    -------
+    List[List[int]]
+        A list of lists, where each sub-list is an additional landmark.
+    """
+    # subdiv.insert() cannot handle max values for edges, so add a small offset.
+    # TODO: why???
+    offset = 0.0001
+
+    # New coordinates to add to the landmarks
+    new_coords = [
+        # Corners of the image
+        [0, 0],
+        [image_width - offset, 0],
+        [image_width - offset, image_height - offset],
+        [0, image_height - offset],
+
+        # Middle of the top, bottom, left, right sides
+        [(image_width - offset) / 2, 0],
+        [(image_width - offset) / 2, image_height - offset],
+        [0, (image_height - offset) / 2],
+        [image_width - offset, image_height / 2],
+    ]
+
+    int_coords = [(int(x), int(y)) for (x, y) in new_coords]
+
+    return int_coords
+
+
+def align_eyes_horizontally(image : np.ndarray) -> tuple:
+    """
+    Rotate an image so that the eyes are positioned horizontally.
+    This makes it much more straightforward for subsequent cropping.
+    This function also returns all the landmarks, appropriately
+    rotated.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        An image that should contain a face.
+    
+    Returns
+    -------
+    tuple
+        A tuple of two items.
+        The first is a np.ndarray rotated image.
+        The second is the rotated landmarks from mediapipe.
+        TODO: what type exactly are the mediapipe landmarks?
+    """
+    # Read the image.
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(image_rgb)
+    
+    if not results.multi_face_landmarks:
+        raise ValueError("Alignment phase: no face detected.")
+    
+    # Get landmarks for the pupils.
+    landmarks = results.multi_face_landmarks[0].landmark
+    left_eye = (int(landmarks[33].x * image.shape[1]),
+                int(landmarks[33].y * image.shape[0]))
+    right_eye = (int(landmarks[263].x * image.shape[1]),
+                 int(landmarks[263].y * image.shape[0]))
+    
+    dx = right_eye[0] - left_eye[0]
+    dy = right_eye[1] - left_eye[1]
+    
+    # Get the angle the image needs to be rotated.
+    angle = np.degrees(np.arctan2(dy, dx))
+    
+    # Find the center of the image.
+    center = (image.shape[1] // 2, image.shape[0] // 2)
+
+    # Get the rotation matrix.
+    rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    # Rotate the image.
+    rotated_image = cv2.warpAffine(image,
+                                   rotation_matrix,
+                                   (image.shape[1], image.shape[0]))
+    
+    # Get the rotated landmarks.
+    # TODO: do this with a rotation instead of a second mediapipe call.
+    results_2 = face_mesh.process(rotated_image)
+    
+    if not results_2.multi_face_landmarks:
+        raise ValueError("Post-rotation phase: no face detected.")
+    
+    rotated_landmarks = results_2.multi_face_landmarks[0].landmark
+    
+
+    return rotated_image, rotated_landmarks
+
+
+def crop_image_based_on_eyes(image : np.ndarray,
+                             landmarks : np.ndarray,
+                             l : float,
+                             r : float,
+                             t : float,
+                             b : float) -> np.ndarray:
+    """
+    Crops the image based on the relative position of the eyes.
+    K is the distance between pupils. Starting from the pupils,
+    the value K is used to calculate the margins. For instance,
+    if K is 200 pixels, then a left margin of 1.5 will mean that
+    the left margin is 1.5 * 200 = 300 pixels, starting from the
+    eyeball on the left side of the image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        An image containing a face that has been rotated so that the
+        eyes are on a horizontal plain.
+    landmarks : TODO: what is the mediapipe type exectly?
+        Landmarks returned by mediapipe and rotated.
+    l : float
+        The left margin, calculated as a fraction of K.
+    r : float
+        The right margin, calculated as a fraction of K.
+    t : float
+        The top margin, calculated as a fraction of K.
+    b : float
+        The bottom margin, calculated as a fraction of K.
+
+    Returns
+    -------
+    np.ndarray
+        The cropped image.
+    """
+    # Iris landmarks (468-472 for right eye, 473-477 for left eye)
+    try:
+        left_iris_landmarks = [landmarks[468],
+                               landmarks[469],
+                               landmarks[470],
+                               landmarks[471],
+                               landmarks[472]]
+        right_iris_landmarks = [landmarks[473],
+                                landmarks[474],
+                                landmarks[475],
+                                landmarks[476],
+                                landmarks[477]]
+        
+    # If this exception gets hit too much, set refine_landmarks=True
+    except IndexError:
+        raise ValueError("Iris landmarks not available.")
+    
+    # Calculate the center of the left and right iris.
+    left_iris_center = np.mean([(int(lm.x * image.shape[1]),
+                                 int(lm.y * image.shape[0])) \
+                                    for lm in left_iris_landmarks],
+                                 axis=0)
+    right_iris_center = np.mean([(int(lm.x * image.shape[1]),
+                                  int(lm.y * image.shape[0])) \
+                                    for lm in right_iris_landmarks],
+                                  axis=0)
+    
+    # Calculate the distance between the eyes.
+    K = right_iris_center[0] - left_iris_center[0]
+    
+    # Calculate crop coordinates
+    x1 = int(left_iris_center[0] - l * K)
+    x2 = int(right_iris_center[0] + r * K)
+    y1 = int(left_iris_center[1] - t * K)
+    y2 = int(left_iris_center[1] + b * K)
+    
+    # Create a blank image (black) of the desired crop size
+    crop_height = y2 - y1
+    crop_width = x2 - x1
+    cropped_image = np.zeros((crop_height, crop_width, 3), dtype=np.uint8)
+    
+    # Calculate the valid region of the original image to copy
+    src_x1 = max(x1, 0)
+    src_x2 = min(x2, image.shape[1])
+    src_y1 = max(y1, 0)
+    src_y2 = min(y2, image.shape[0])
+    
+    # Calculate the destination region in the blank image
+    dst_x1 = src_x1 - x1
+    dst_x2 = dst_x1 + (src_x2 - src_x1)
+    dst_y1 = src_y1 - y1
+    dst_y2 = dst_y1 + (src_y2 - src_y1)
+    
+    # Copy the valid region from the original image to the blank image
+    if src_x2 > src_x1 and src_y2 > src_y1:
+        cropped_image[dst_y1:dst_y2, dst_x1:dst_x2] = \
+            image[src_y1:src_y2, src_x1:src_x2]
+    
+    return cropped_image
+
+
+def crop_align_image_based_on_eyes(image : np.ndarray,
+                                   l : float,
+                                   r : float,
+                                   t : float,
+                                   b : float) -> np.ndarray:
+    """
+    Wrapper function for the rotate and crop functions.
+    NOTE: these should eventually be combined.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        An image containing a face.
+    l : float
+        The left margin, calculated as a fraction of K.
+    r : float
+        The right margin, calculated as a fraction of K.
+    t : float
+        The top margin, calculated as a fraction of K.
+    b : float
+        The bottom margin, calculated as a fraction of K.
+
+    Returns
+    -------
+    np.ndarray
+        The cropped image.
+    """
+    rotated_image, rotated_landmarks = align_eyes_horizontally(image)
+    cropped_image = crop_image_based_on_eyes(image=rotated_image,
+                                             landmarks=rotated_landmarks,
+                                             l=l,
+                                             r=r,
+                                             t=t,
+                                             b=b)
+
+    return cropped_image
+
+
+def is_face_looking_forward(face_landmarks: List[int],
+                            image_height : int,
+                            image_width : int
+                            ) -> bool:
+    """
+    Analyzes the landmarks from a face and returns True if the
+    face is looking forward (like a passport photo), otherwise
+    it returns False.
+
+    Parameters
+    ----------
+    face_landmarks : List[int]
+        A list of all the landmarks returned from mediapipe's face mesh.
+    image_height : int
+        The height of the image in pixels.
+    image_width : int
+        The width of the image in pixelv.
+    
+    Returns
+    -------
+    bool
+        True if the face is looking forward.
+        False if the face is looking in another direction.
+    """
+    # Collect the 2D and 3D landmarks.
+    face_2d = []
+    face_3d = []
+
+    for idx, lm in enumerate(face_landmarks.landmark):
+        if idx == 33 or idx == 263 or idx ==1 or idx == 61 or idx == 291 or idx==199:
+            # if idx == 1:
+            #     nose_2d = (lm.x * image_width,lm.y * image_height)
+            #     nose_3d = (lm.x * image_width,lm.y * image_height,lm.z * 3000)
+            x, y = int(lm.x * image_width),int(lm.y * image_height)
+
+            face_2d.append([x,y])
+            face_3d.append(([x,y,lm.z]))
+
+    # Get 2D coordinates
+    face_2d = np.array(face_2d, dtype=np.float64)
+
+    # Get 3D coordinates
+    face_3d = np.array(face_3d,dtype=np.float64)
+
+    # Calculate the orientation of the face.
+    focal_length = 1 * image_width
+    cam_matrix = np.array([[focal_length,0,image_height/2],
+                        [0,focal_length,image_width/2],
+                        [0,0,1]])
+    distortion_matrix = np.zeros((4,1),dtype=np.float64)
+
+    _, rotation_vec, _ = \
+        cv2.solvePnP(face_3d, face_2d, cam_matrix, distortion_matrix)
+
+    # Get the rotational vector of the face.
+    rmat, _ = cv2.Rodrigues(rotation_vec)
+
+    angles, _, _ ,_, _, _ = cv2.RQDecomp3x3(rmat)
+
+    x = angles[0] * 360
+    y = angles[1] * 360
+    z = angles[2] * 360
+
+    # Check which way the face is oriented.
+    if y < -3: # Looking Left
+        looking_forward = False
+
+    elif y > 3: # Looking Right
+        looking_forward = False
+
+    elif x < -3: # Looking Down
+        looking_forward = False
+
+    elif x > 7: # Looking Up
+        looking_forward = False
+
+    else: # Looking Forward
+        looking_forward = True
+
+    return looking_forward
+
+def get_delauney_triangles(image_width : int,
+                           image_height : int,
+                           landmark_coordinates : List[List[int]]) \
+                            -> np.ndarray:
+    """
+    Accepts an image along with landmark coordinates, which are a
+    list of tuples. The landmarks can be just the face landmarks or
+    all the landmarks, which will include points along the edge of
+    the image, not just the face.
+
+    Returns a list of lists, where every element of the list is
+    6 long and contains the three coordinate pairs of every
+    delauney triangle:
+        [ [[x1, x2, y1, y2, z1, z2], ... ]
+
+    NOTE: there will be more delauney triangles than points.
+
+    Parameters
+    ----------
+    image_width : int
+        The width of the image.
+    image_height : int
+        The height of the image.
+    landmark_coordinates : List[List[int]]
+        A list of all the landmark coordiantes.
+    
+    Returns
+    -------
+    np.ndarray
+        A NumPy array of shape (N, 6), where each row contains the 
+        coordinates of a Delaunay triangle: [x1, y1, x2, y2, x3, y3].
+    """
+    # Rectangle to be used with Subdiv2D
+    rect = (0, 0, image_width, image_height)
+
+    # Create an instance of Subdiv2D
+    subdiv = cv2.Subdiv2D(rect)
+
+    # Insert points into subdiv
+    for p in landmark_coordinates:
+        subdiv.insert(p)
+
+    return subdiv.getTriangleList()
+
+
+def get_triangulation_indexes_for_landmarks(landmarks : List[List[int]],
+                                            image_height : int,
+                                            image_width : int) -> List:
+    """
+    Connect together all the landmarks into delauney triangles that
+    span the image.
+
+    Parameters
+    ----------
+    landmarks : list
+        A list of coordinate pairs for every landmark.
+    image_height : int
+        The height of the image.
+    image_width : int
+        The width of the image. 
+    
+    Returns
+    -------
+    List[List[int]]
+        The triangulation indexes. A list containing triplets:
+        [[458, 274, 459], [465, 417, 464], ... ]
+    """
+    # Get the delauney triangles based off the landmarks.
+    delauney_triangles = get_delauney_triangles(image_width,
+                                                image_height,
+                                                landmarks)
+
+    # Convert these points into indexes.
+    enumerated_rows = {}
+    for index, row in enumerate(landmarks):
+        enumerated_rows[str(list(row))] = index
+
+    triangulation_indexes = []
+
+    for x1, x2, y1, y2, z1, z2 in delauney_triangles:
+        x = str(list([int(x1), int(x2)]))
+        y = str(list([int(y1), int(y2)]))
+        z = str(list([int(z1), int(z2)]))
+
+        index_x = enumerated_rows[x]
+        index_y = enumerated_rows[y]
+        index_z = enumerated_rows[z]
+
+        triangulation_indexes.append([index_x, index_y, index_z])
+
+    return triangulation_indexes
+
+def applyAffineTransform(src: np.ndarray, 
+                         srcTri: List[List[int]], 
+                         dstTri: List[List[int]], 
+                         size: Tuple[int, int]) -> np.ndarray:
+    """
+    Applies an affine transformation to an image region based on 
+    corresponding triangle vertices.
+
+    Given a source image region and a pair of corresponding triangles (one 
+    in the source image and one in the destination image), this function 
+    computes the affine transformation matrix and applies it to warp the 
+    source patch onto the destination.
+
+    Parameters
+    ----------
+    src : np.ndarray
+        The source image patch that will be transformed.
+    
+    srcTri : List[List[int]]
+        A list of three coordinate pairs representing the triangle in the 
+        source image. Format: [[x1, y1], [x2, y2], [x3, y3]].
+    
+    dstTri : List[List[int]]
+        A list of three coordinate pairs representing the corresponding 
+        triangle in the destination image. Format: [[x1, y1], [x2, y2], [x3, y3]].
+    
+    size : Tuple[int, int]
+        The dimensions (width, height) of the output image patch.
+
+    Returns
+    -------
+    np.ndarray
+        The warped image patch with the same dimensions as `size`.
+
+    Notes
+    -----
+    - The transformation is computed using `cv2.getAffineTransform()`, which 
+      finds a 2x3 matrix mapping `srcTri` to `dstTri`.
+    - The transformation is applied using `cv2.warpAffine()` with bilinear 
+      interpolation and border reflection to handle edge pixels.
+    """
+    # Given a pair of triangles, find the affine transform.
+    warpMat = cv2.getAffineTransform(np.float32(srcTri), np.float32(dstTri))
+
+    # Apply the Affine Transform just found to the src image
+    dst = cv2.warpAffine(src,
+                         warpMat,
+                         (size[0], size[1]),
+                         None,
+                         flags=cv2.INTER_LINEAR,
+                         borderMode=cv2.BORDER_REFLECT_101)
+
+    return dst
+
+
+def morph_align_face(source_face : np.ndarray,
+                     source_face_landmarks : List[list[int]],
+                     target_face_landmarks : List[List[int]],
+                     triangulation_indexes: List) -> np.ndarray:
+    """
+    Accepts two images of the same dimensions containing faces.
+    The features of the `source_face` are morphed so that they
+    align with the landmarks of the `target_face`. Returns a morphed
+    version of the `source_face`.
+
+    This is done by extracting the landmarks from both faces and
+    performing many affine transformations to change portions of
+    the `source_face` to align with the `target_face`. These affine
+    transformations assume a triangulation index, which is a division
+    of all the landmarks into triangles, which are easy to mutate.
+
+    Parameters
+    ----------
+    source_face : np.ndarray
+        The face that will be morphed, having its features changed.
+        Must be the same dimensions as `target_face`.
+
+    target_face_all_landmarks : List[List[int]]
+        The "skeleton" landmarks onto which the source face will be mutated.
+        Must be the same dimensions as `source_face`.
+
+    triangulation_indexes : list
+        The list of triangles that span the entire image, used for
+        morphing. Can be pre-computed, as it is not related to a
+        specific face. It must have the same dimensions as `source_face`
+        and `target_face`.
+
+    Returns
+    -------
+    np.ndarray
+        The "skin" from `source_face` morphed onto the landarks
+        ("skeleton") of `target_face`.
+    """
+
+
+    # Get the triangulation indexes for the target face.
+    # NOTE: the image height/width is the same in all images, so it's taken
+    # # from the source, even though the landmarks are from the target.
+    if not triangulation_indexes:
+        triangulation_indexes = get_triangulation_indexes_for_landmarks(
+                                            image_height=source_face.shape[0],
+                                            image_width=source_face.shape[1],
+                                            landmarks=target_face_landmarks)
+
+    else:
+        # Load the triangulation indexes.
+        # TODO: implement this, save file to git
+        pass
+
+    # Leave space for final output
+    morphed_face = np.zeros(source_face.shape, dtype=source_face.dtype)
+
+    # Main event loop to morph triangles.
+    for line in triangulation_indexes:
+        # ID's of the triangulation points
+        x = line[0]
+        y = line[1]
+        z = line[2]
+
+        # Coordinate pairs
+        t1 = [target_face_landmarks[x],
+                target_face_landmarks[y],
+                target_face_landmarks[z]]
+        t2 = [source_face_landmarks[x],
+                source_face_landmarks[y],
+                source_face_landmarks[z]]
+
+        r1 = cv2.boundingRect(np.float32([t1]))
+        r2 = cv2.boundingRect(np.float32([t2]))
+        r = cv2.boundingRect(np.float32([t1]))
+
+        # Offset points by left top corner of the respective rectangles
+        t1Rect = []
+        t2Rect = []
+        tRect = []
+
+        for i in range(0, 3):
+            tRect.append(((t1[i][0] - r[0]), (t1[i][1] - r[1])))
+            t1Rect.append(((t1[i][0] - r1[0]), (t1[i][1] - r1[1])))
+            t2Rect.append(((t2[i][0] - r2[0]), (t2[i][1] - r2[1])))
+
+        # Get the mask by filling triangles
+        mask = np.zeros((r[3], r[2], 3), dtype=np.float32)
+        cv2.fillConvexPoly(mask, np.int32(tRect), (1.0, 1.0, 1.0), 16, 0)
+
+        # Apply to small rectangular patches
+        img2Rect = source_face[r2[1]:r2[1] + r2[3], r2[0]:r2[0] + r2[2]]
+
+        size = (r[2], r[3])
+        warped_image = applyAffineTransform(src=img2Rect,
+                                            srcTri=t2Rect,
+                                            dstTri=tRect,
+                                            size=size)
+
+        # Copy triangular region of the rectangular patch to the output image
+        morphed_face[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] = \
+            morphed_face[r[1]:r[1] + r[3], r[0]:r[0] + r[2]] * \
+                    (1 - mask) + warped_image * mask
+
+    return morphed_face
+
+
+
+def get_average_landmarks(target_landmarks_paths : list) -> List[List[int]]:
+    """
+    Accepts a list of image paths and extracts the landmarks from each
+    image, averaging them together.
+
+    Parameters
+    ----------
+    target_landmarks_paths : list
+        A list of the paths to every face image. This can simply
+        be a list of one path, or some subset of the dataset.
+
+    Returns
+    -------
+    List[List[int]]
+        The averaged landmarks.
+    """
+    # Collect all the landmarks here.
+    all_landmarks = []
+
+    # Read all the images.
+    for face_path in target_landmarks_paths:
+        face_image = cv2.imread(face_path)
+
+        # Get all the landmarks.
+        landmarks = get_face_landmarks(face_image)
+        if landmarks is not None:
+            all_landmarks.append(np.array(landmarks, dtype=np.float32))
+
+    # Compute the average of all landmarks.
+    average_landmarks = np.mean(all_landmarks, axis=0).astype(int)
+
+    # Convert to a list
+    average_landmarks_list = average_landmarks.tolist()
+
+    return average_landmarks_list
+
+
+def create_composite_image(image_list : List[np.ndarray],
+                           num_squares_height : int) -> np.ndarray :
+    """
+    Accepts a list of images and desired number of squares
+    (along the vertical margin) and creates a composite image
+    from them.
+
+    Parameters
+    ----------
+    image_list : List[np.ndarray]
+        A list of images encoded as numpy arrays.
+    num_squares_height : int,
+        The number of squares to tile the vertical of the image.
+    
+    Returns
+    -------
+    np.ndarray
+        A composite image encoded as a numpy array.
+    """
+    # Get the height/width from a random image.
+    image_height = image_list[0].shape[0]
+    image_width = image_list[0].shape[1]
+
+    # Check that the images all have the same shape
+    if len(set((img.shape for img in image_list))) != 1:
+        raise ValueError("All images must have the same dimensions.")
+
+    # Set the image dimension info.
+    crop_width = image_width - (image_width % num_squares_height)
+    crop_height = image_height - (image_height % num_squares_height)
+    image_list = [img[:crop_height, :crop_width] for img in image_list]
+
+    square_size = crop_height // num_squares_height
+    num_squares_width = crop_width // square_size
+
+    # Generate the individual squares.
+    # TODO: this should also be a memmap
+    squares = [[[] for _ in range(num_squares_width)] for _ in range(num_squares_height)]
+    for img in image_list:
+        for i in range(num_squares_height):
+            for j in range(num_squares_width):
+                top = i * square_size
+                left = j * square_size
+                square = img[top:top + square_size, left:left + square_size]
+                squares[i][j].append(square)
+
+    # Combine the squares into an image.
+    composite_image = np.zeros_like(image_list[0][:crop_height, :crop_width])
+    for i in range(num_squares_height):
+        for j in range(num_squares_width):
+            selected_square = random.choice(squares[i][j])
+            top = i * square_size
+            left = j * square_size
+            composite_image[top:top + square_size, left:left + square_size] = selected_square
+
+    return composite_image
+
+
+
+
+
+
+
+
+import random
+from typing import List
+import numpy as np
+
+def create_composite_image(image_list: List[np.ndarray], num_squares_height: int) -> np.ndarray:
+    """
+    Accepts a list of images and desired number of squares
+    (along the vertical margin) and creates a composite image
+    from them. The composite image will have the same dimensions
+    as the input images.
+
+    Parameters
+    ----------
+    image_list : List[np.ndarray]
+        A list of images encoded as numpy arrays.
+    num_squares_height : int,
+        The number of squares to tile the vertical of the image.
+    
+    Returns
+    -------
+    np.ndarray
+        A composite image encoded as a numpy array with the same
+        dimensions as the input images.
+    """
+    # Get the height/width from a random image.
+    image_height = image_list[0].shape[0]
+    image_width = image_list[0].shape[1]
+
+    # Check that the images all have the same shape
+    if len(set((img.shape for img in image_list))) != 1:
+        raise ValueError("All images must have the same dimensions.")
+
+    # Calculate the square size based on the height
+    square_size = image_height // num_squares_height
+
+    # Calculate the number of squares along the width
+    num_squares_width = image_width // square_size
+
+    # Initialize the composite image with the same dimensions as the input images
+    composite_image = np.zeros_like(image_list[0])
+
+    # Generate the individual squares.
+    for i in range(num_squares_height):
+        for j in range(num_squares_width):
+            # Calculate the top-left corner of the square
+            top = i * square_size
+            left = j * square_size
+
+            # Randomly select an image to take the square from
+            selected_image = random.choice(image_list)
+
+            # Extract the square from the selected image
+            square = selected_image[top:top + square_size, left:left + square_size]
+
+            # Place the square into the composite image
+            composite_image[top:top + square_size, left:left + square_size] = square
+
+    return composite_image

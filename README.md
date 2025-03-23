@@ -1,7 +1,7 @@
 # Fragments 🧩
 
 An automated portrait that collects the faces of visitors, combines them together, and
-dissolves them into fragments [link](https://smith.cam/fragments.html)
+dissolves them into fragments [[link](https://smith.cam/fragments.html)]
 
 
 ## Setup
