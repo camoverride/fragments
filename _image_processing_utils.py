@@ -1,24 +1,24 @@
-from typing import List
+from typing import List, Tuple
+import numpy as np
 import cv2
 import mediapipe as mp
-import numpy as np
-from typing import Tuple
 import random
-
-# Initialize Mediapipe FaceMesh with iris detection
-# mp_face_mesh = mp.solutions.face_mesh
-# face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, refine_landmarks=True)
+import numpy as np
 
 
 
-# Initialize MediaPipe Face Detection
-# TODO: is refine landmarks necessary? Does it use too much compute?
-# Harmonize this with other face mesh calls.
+# Initialize image capture.
+cap = cv2.VideoCapture(0)
+cv2.waitKey(1000) # pause so first frame isn't dark
+
+# Initialize detection.
+face_detection = \
+    mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.9)
+
 face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True,
-                                               max_num_faces=1,
-                                               refine_landmarks=True,
-                                               min_detection_confidence=0.5)
-face_detection = mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5)
+                                            max_num_faces=1,
+                                            refine_landmarks=True,
+                                            min_detection_confidence=0.5)
 
 
 def get_face_landmarks(image : np.ndarray) -> List[List[int]]:
@@ -382,6 +382,7 @@ def is_face_looking_forward(face_landmarks: List[int],
 
     return looking_forward
 
+
 def get_delauney_triangles(image_width : int,
                            image_height : int,
                            landmark_coordinates : List[List[int]]) \
@@ -567,8 +568,6 @@ def morph_align_face(source_face : np.ndarray,
         The "skin" from `source_face` morphed onto the landarks
         ("skeleton") of `target_face`.
     """
-
-
     # Get the triangulation indexes for the target face.
     # NOTE: the image height/width is the same in all images, so it's taken
     # # from the source, even though the landmarks are from the target.
@@ -634,7 +633,6 @@ def morph_align_face(source_face : np.ndarray,
                     (1 - mask) + warped_image * mask
 
     return morphed_face
-
 
 
 def get_average_landmarks(target_landmarks_paths : list) -> List[List[int]]:
@@ -732,16 +730,6 @@ def create_composite_image(image_list : List[np.ndarray],
     return composite_image
 
 
-
-
-
-
-
-
-import random
-from typing import List
-import numpy as np
-
 def create_composite_image(image_list: List[np.ndarray], num_squares_height: int) -> np.ndarray:
     """
     Accepts a list of images and desired number of squares
@@ -796,3 +784,250 @@ def create_composite_image(image_list: List[np.ndarray], num_squares_height: int
             composite_image[top:top + square_size, left:left + square_size] = square
 
     return composite_image
+
+
+
+
+
+
+
+
+
+
+
+
+
+def get_faces_from_webcam(debug : bool):
+    """
+    If a face is detected, a tuple (np.ndarray, list) is
+    returned, where the first element is a frame from the
+    webcam, and the second element is a list of all the
+    bounding boxes surrounding faces. If no faces are
+    deteceted, a tuple of (False, False) is returned.
+
+    NOTE: These bounding boxes can then be utilized with
+    the function `simple_crop_face`
+
+    Parameters
+    ----------
+    debug : bool
+        Shows intermediate processing steps as images
+        which pause execution until a key is pressed.
+
+    Returns
+    -------
+    tuple
+        A tuple of (False, False) if no faces are detected.
+        A tuple of (np.ndarray, list) there the first element
+        is a frame from the webcam, and the second element
+        is a list of bounding boxes that contain faces.
+    """
+    # Get a frame from the webcam.
+    ret, frame = cap.read()
+    if not ret:
+        raise ValueError("Failed to capture image from webcam.")
+
+    if debug:
+        cv2.imshow("Image from webcam", frame)
+        cv2.waitKey(3000)
+        cv2.destroyAllWindows()
+    
+    # Look for faces in the frame
+    frame_data = face_detection.process(frame)
+
+    # If there are no faces, return False.
+    if not frame_data.detections:
+        print("No faces detected!")
+        return False, False
+
+    # If there are faces, return the frame and listf of bounding boxes.
+    relative_bbs = [detection.location_data.relative_bounding_box \
+            for detection in frame_data.detections]
+
+    return frame, relative_bbs
+
+
+def quantify_blur(image):
+    """
+    Determine if an image is blurry using the variance of the Laplacian.
+
+    Parameters:
+    - image: Input image as a NumPy array (np.ndarray).
+    - threshold: A threshold value to determine blurriness. Lower values are more sensitive to blur.
+
+    Returns:
+    - True if the image is blurry, False otherwise.
+    """
+    # Convert the image to grayscale if it's not already
+    if len(image.shape) == 3:  # Check if the image is in color (3 channels)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image  # Already grayscale
+
+    # Compute the Laplacian of the image
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+
+    # Calculate the variance of the Laplacian
+    laplacian_var = np.var(laplacian)
+
+    return laplacian_var
+
+
+def is_face_wide_enough(image: np.ndarray, bbox: dict, min_width: int) -> bool:
+    """
+    Checks if the face in the bounding box meets the minimum width requirement.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image containing the face.
+    bbox : dict
+        A relative bounding box with keys 'xmin', 'ymin', 'width', 'height'.
+    min_width : int
+        The minimum width (in pixels) for the face to be considered valid.
+
+    Returns
+    -------
+    bool
+        True if the face is wide enough, False otherwise.
+    """
+    # Get the dimensions of the image
+    h, w, _ = image.shape
+
+    # Convert the relative bounding box width to absolute width
+    bbox_width = int(bbox.width * w)
+
+    # Check if the face meets the minimum width requirement
+    return bbox_width >= min_width
+
+
+# NOTE: This is a custom function NOT from frankenface
+def get_average_face(images : List[np.ndarray]) -> np.ndarray:
+    """
+    Accepts a list of paths to some images and returns an average image.
+
+    Parameters
+    ----------
+    images : List[np.ndarray]
+        A list of images that will be averaged.
+
+    Returns
+    -------
+    np.ndarray
+        An averaged image.
+    """
+    # Initialize variables to store the sum of images and the count
+    image_sum = None
+    num_images = 0
+
+    # Iterate over each image file
+    for image in images:
+
+        # Check if the image was loaded successfully
+        if image is None:
+            print(f"Warning: Could not load image . Skipping.")
+            continue
+
+        # Convert the image to float32 for accurate summation
+        image = image.astype(np.float32)
+
+        # Initialize the sum if this is the first image
+        if image_sum is None:
+            image_sum = np.zeros_like(image, dtype=np.float32)
+
+        # Add the image to the sum
+        image_sum += image
+        num_images += 1
+
+    # Check if any images were processed
+    if num_images == 0:
+        raise ValueError("No valid images found in the directory.")
+
+    # Compute the average image
+    averaged_image = image_sum / num_images
+
+    # Convert back to uint8 for saving/displaying
+    averaged_image = averaged_image.astype(np.uint8)
+
+    return averaged_image
+
+
+# NOTE: this is taken from the repo `face_yourself`
+def simple_crop_face(image, bbox, margin_fraction):
+    h, w, _ = image.shape
+
+    # Calculate the bounding box dimensions
+    bbox_width = int(bbox.width * w)
+    bbox_height = int(bbox.height * h)
+
+    # Calculate margins based on the required square size
+    if bbox_width > bbox_height:
+        diff = bbox_width - bbox_height
+        margin_y = int((bbox_height * margin_fraction) + (diff / 2))
+        margin_x = int(bbox_width * margin_fraction)
+    else:
+        diff = bbox_height - bbox_width
+        margin_x = int((bbox_width * margin_fraction) + (diff / 2))
+        margin_y = int(bbox_height * margin_fraction)
+
+    # Calculate the coordinates for cropping
+    x_min = max(int(bbox.xmin * w) - margin_x, 0)
+    y_min = max(int(bbox.ymin * h) - margin_y, 0)
+    x_max = min(int((bbox.xmin + bbox.width) * w) + margin_x, w)
+    y_max = min(int((bbox.ymin + bbox.height) * h) + margin_y, h)
+
+    # Make sure the crop is square
+    crop_width = x_max - x_min
+    crop_height = y_max - y_min
+
+    if crop_width > crop_height:
+        diff = crop_width - crop_height
+        y_min = max(y_min - diff // 2, 0)
+        y_max = min(y_max + diff // 2, h)
+    elif crop_height > crop_width:
+        diff = crop_height - crop_width
+        x_min = max(x_min - diff // 2, 0)
+        x_max = min(x_max + diff // 2, w)
+
+    # Return the cropped square image
+    return image[y_min:y_max, x_min:x_max]
+
+
+def is_face_centered(relative_bb) -> bool:
+    """
+    Determines whether the center of a bounding box is within the middle
+    square of a 3x3 grid (like a tic-tac-toe board) of the image.
+
+    Parameters
+    ----------
+    relative_bb : object
+        A bounding box object with attributes `xmin`, `ymin`, `width`, and `height`
+        (all normalized to the image dimensions, i.e., in the range [0, 1]).
+
+    Returns
+    -------
+    bool
+        True if the center of the bounding box is within the middle square
+        of the 3x3 grid, False otherwise.
+    """
+    # Extract normalized bounding box coordinates
+    xmin = relative_bb.xmin
+    ymin = relative_bb.ymin
+    width = relative_bb.width
+    height = relative_bb.height
+
+    # Calculate the center of the bounding box
+    center_x = xmin + (width / 2)
+    center_y = ymin + (height / 2)
+
+    # Define the boundaries of the middle square in the 3x3 grid
+    middle_x_min = 1 / 3
+    middle_x_max = 2 / 3
+    middle_y_min = 1 / 3
+    middle_y_max = 2 / 3
+
+    # Check if the center of the bounding box is within the middle square
+    is_centered = (middle_x_min <= center_x < middle_x_max) and \
+                  (middle_y_min <= center_y < middle_y_max)
+
+    return is_centered

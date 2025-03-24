@@ -52,13 +52,13 @@ def create_face_mapping_database(db_path : str) -> bool:
     """
     Creates a sqlite database with the following schema:
 
-    | ID  | avg_face_path | animated_face_path | face_list |
+    | ID  | avg_face_path | collage_filepath | face_list |
 
     - `face_list` is a list of paths to every face that was used
     to create the average face and is saved as a BLOB.
     - `avg_face_path` is a face created by morphing and averaging
     all the faces in `face_list`.
-    - `animated_face_path` is a path to the np.ndarray images
+    - `collage_filepath` is a path to the np.ndarray images
     that compose an animation, saved as a compressed numpy
     archive (.npz).
 
@@ -81,7 +81,7 @@ def create_face_mapping_database(db_path : str) -> bool:
         CREATE TABLE IF NOT EXISTS face_mappings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             avg_face_path TEXT NOT NULL,
-            animated_face_path TEXT NOT NULL,
+            collage_filepath TEXT NOT NULL,
             face_list BLOB NOT NULL
         )
         """)

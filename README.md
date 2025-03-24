@@ -15,12 +15,14 @@ This is intended to be run on a Raspberry Pi 5 with a pi camera.
 - `pip install setuptools` (for `face_recognition` package)
 - `pip install -r requirements.txt`
 - `sudo apt-get install unclutter`
+- Create the databases and clear existing files: `python _database_utils.py`
 
 
 ## Test
 
 - `export DISPLAY=:0`
 - `python run_display.py`
+- If you change the image parameters or want a fresh start: `python _database_utils.py`
 
 
 ## Run in Production
@@ -39,3 +41,10 @@ Start the service using the commands below:
 Start it on boot: `sudo loginctl enable-linger pi`
 
 Get the logs: `journalctl --user -u display.service`
+
+## TODO
+
+- [ ] integrate picam
+- [ ] add config
+- [ ] code cleanup
+- [ ] fix issue with simple_crop getting too-large area
