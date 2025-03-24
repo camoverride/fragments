@@ -96,9 +96,9 @@ def create_face_mapping_database(db_path : str) -> bool:
 
 
 def insert_embedding(db_path: str,
-                    face_path: str,
-                    landmarks: list,
-                    embedding: np.ndarray) -> bool:
+                     face_path: str,
+                     landmarks: list,
+                     embedding: np.ndarray) -> bool:
     """
     Inserts a face embedding into the face_embeddings database (`db_path`).
 
@@ -145,7 +145,7 @@ def insert_embedding(db_path: str,
 
 def insert_face_mapping(db_path : str,
                         avg_face_path : str,
-                        animated_face_path : str,
+                        collage_filepath : str,
                         face_list : list) -> bool:
     """
     Inserts a face mapping into the face_mappings database.
@@ -174,9 +174,9 @@ def insert_face_mapping(db_path : str,
         face_list_blob = pickle.dumps(face_list)
 
         cursor.execute("""
-        INSERT INTO face_mappings (avg_face_path, animated_face_path, face_list)
+        INSERT INTO face_mappings (avg_face_path, collage_filepath, face_list)
         VALUES (?, ?, ?)
-        """, (avg_face_path, animated_face_path, face_list_blob))
+        """, (avg_face_path, collage_filepath, face_list_blob))
 
         conn.commit()
         conn.close()

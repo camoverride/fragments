@@ -44,7 +44,10 @@ Get the logs: `journalctl --user -u display.service`
 
 ## TODO
 
+- [X] add config
+- [X] code cleanup
 - [ ] integrate picam
-- [ ] add config
-- [ ] code cleanup
 - [ ] fix issue with simple_crop getting too-large area
+- [ ] install on Rpi
+- [ ] test on Rpi
+- [ ] integrate swapping between Fragments and Averages

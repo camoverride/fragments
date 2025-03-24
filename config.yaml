@@ -1,15 +1,18 @@
 # Database paths
-embeddings_db: face_embeddings.db"
-mappings_db: face_mappings.db"
+embeddings_db: face_embeddings.db
+mappings_db: face_mappings.db
+
+# Display dataset path
+animation_dir: images/averages
 
 # Collage parameters
-min_num_faces_in_collage: 2
-max_num_faces_in_collage: 6
+min_num_faces_in_collage: 1 # 6
+max_num_faces_in_collage: 6 # 8
 num_frames_in_collage_animation: 50
 
 # Image processing parameters
 blur_threshold: 180 # Definitely check on this - depends on camera (50 - 200)
-min_width: 400
+min_width: 250
 margin_fraction: 1.0 # This might need to be wider. NOTE: source of bugs!
 height_output: 600 # Should be same as monitor height
 width_output: 500 # Should be same as monitor width
@@ -26,4 +29,4 @@ tolerance: 0.6 # Face recognition tolerance.
 
 # Other parameters
 triangulation_indexes: None # This should be changed to a pre-computer path.
-debug_images: True
+debug_images: False

@@ -155,242 +155,254 @@ def collect_faces(embeddings_db : str,
         If collage conditions are met, .npz archices of animations
         are written to `images/collages`.
     """
-    # Get an image from the webcam along with face bounding boxes.
-    frame, bbs = get_faces_from_webcam(debug=debug_images)
+    # Wrap everything in a giant try/except
+    try:
+        # Get an image from the webcam along with face bounding boxes.
+        frame, bbs = get_faces_from_webcam(debug=debug_images)
 
-    # If bbs exists, then faces have been detected.
-    if not bbs:
-        print("No faces detected!!!")
-        return False
-
-    # There might be multiple faces in the image.
-    for bb in bbs:
-
-        # Check if face is too far from the center. TODO: test this
-        if not is_face_centered(bb):
-            print("Face is not centered!!!")
+        # If bbs exists, then faces have been detected.
+        if not bbs:
+            print("No faces detected!!!")
             return False
 
-        # Get a simple-cropped face with tight margins for blur detection.
-        simple_cropped_face_tight_margins = simple_crop_face(frame, bb, margin_fraction=0)
+        # There might be multiple faces in the image.
+        for bb in bbs:
 
-        # Test if the image is too blurry.
-        if quantify_blur(simple_cropped_face_tight_margins) > blur_threshold:
-            print("Face is blurry!!!")
-            return False
-
-        if not is_face_wide_enough(image=frame,
-                                   bbox=bb,
-                                   min_width=min_width):
-            print("Face is too small!")
-            return False
-
-        # Simple crop the image to the bounding box.
-        # TODO: this will have to be large to accomodate the face mesh crop.
-        # NOTE: this might capture multiple faces and introduce bugs.
-        simple_cropped_face_with_margin = simple_crop_face(image=frame,
-                                                           bbox=bb,
-                                                           margin_fraction=margin_fraction)
-
-        if debug_images:
-            cv2.imshow("Simple cropped face", simple_cropped_face_with_margin)
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
-
-        # Get the face_mesh landmarks.
-        face_mesh_results = face_mesh.process(simple_cropped_face_with_margin)
-        
-        # If there are no results, return False
-        if not face_mesh_results:
-            return False
-        if not face_mesh_results.multi_face_landmarks:
-            return False
-
-        # Get the landmarks.
-        landmarks = face_mesh_results.multi_face_landmarks[0]
-
-        if not landmarks:
-            print("No landmarks detected!")
-            return False
-
-        # Check if it's looking forward.
-        face_height, face_width, _ = simple_cropped_face_with_margin.shape
-        face_forward = is_face_looking_forward(face_landmarks=landmarks,
-                                            image_height=face_height,
-                                            image_width=face_width)
-
-        # If it's not looking forward, return False
-        if not face_forward:
-            print("Face isn't looking forward")
-            return False
-
-        if debug_images:    
-            # Annotate the frame.
-            face_annotated = np.copy(simple_cropped_face_with_margin)
-            cv2.putText(simple_cropped_face_with_margin, f"{face_forward}",
-                        (10, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        3,
-                        (0, 255, 0),
-                        2,
-                        cv2.LINE_AA)
-            cv2.imshow("Forward face", face_annotated)
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
-
-        # Process the images with face_mesh to rotate and align the pupils.
-        face_cropped_rotated = \
-            crop_align_image_based_on_eyes(image=simple_cropped_face_with_margin,
-                                           l=l,
-                                           r=r,
-                                           t=t,
-                                           b=b)
-
-        if debug_images:
-            cv2.imshow("Face, cropped and pupil-aligned", face_cropped_rotated)
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
-
-        # Resize the image
-        face_cropped_rotated_resized = cv2.resize(face_cropped_rotated, 
-                                                 (width_output, height_output))
-        
-        if debug_images:
-            cv2.imshow("Face, resized", face_cropped_rotated_resized)
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
-
-        # Check if the face has been seen before.
-        # NOTE: use the face that has not been rotated and resized, as face_recognition
-        # often fails with rotated images (unsure why!)
-        new_face_embedding = face_recognition.face_encodings(simple_cropped_face_with_margin)
-
-        # If the face was able to be successfully embedded
-        if not new_face_embedding:
-            print("Face could not be embedded!!!")
-            return False
-
-        # Get the face embedding.
-        # TODO: why index with [0] - probably because multiple embeddings might
-        # be returned if the image has multiple faces...
-        # NOTE: this is a potential source of bugs.
-        new_face_embedding = new_face_embedding[0]
-
-        # Get recent embeddings.
-        recent_embeddings = get_recent_embeddings(db_path="face_embeddings.db",
-                                                  num_embeddings=face_memory)
-
-        # Check if the face has been recently recognized (embedded).
-        results = face_recognition.compare_faces(recent_embeddings,
-                                                 new_face_embedding,
-                                                 tolerance=tolerance)
-
-        if any(results):
-            print("The face has been seen before!!!")
-            return False
-
-        # Save the processed face.
-        embedding_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-            "_" + str(uuid.uuid4())[:8] + ".jpg"
-        embedding_filepath = f"images/faces/{embedding_filename}"
-        cv2.imwrite(embedding_filepath, face_cropped_rotated_resized)
-
-        # Get all the face landmarks for later morphing.
-        face_landmarks = get_face_landmarks(face_cropped_rotated_resized)
-        additional_landmarks = \
-            get_additional_landmarks(image_height=face_cropped_rotated_resized.shape[0],
-                                     image_width=face_cropped_rotated_resized.shape[1])
-        all_landmarks = face_landmarks + additional_landmarks
-
-        # Insert the image path and embedding into the database.
-        insert_embedding(db_path=embeddings_db,
-                         face_path=embedding_filepath,
-                         landmarks=all_landmarks,
-                         embedding=new_face_embedding)
-
-        ########################################################
-        ################### Animation phase! ###################
-        ########################################################
-
-        # Collect the most recently processed faces from the database.
-        face_paths, face_landmarks = \
-            query_recent_landmarks(db_path="face_embeddings.db",
-                                   n=max_num_faces_in_collage)
-
-        if len(face_paths) < min_num_faces_in_collage:
-            print("Not enough faces to collage!!!")
-            return False
-
-        # Read the current face_paths into a Counter where order doesn't matter but repeats do
-        current_face_counter = Counter(face_paths)
-
-        # Read the face_mapping database's `faces` column into a list of counters.
-        face_lists = read_face_list(db_path=mappings_db)
-        face_counters = [Counter(l) for l in face_lists]
-
-        # Go through all the previously analyzed faces.
-        for faces in face_counters:
-
-            # Check if the faces have already been analyzed.
-            if current_face_counter == faces:
-                print("Faces have already been averaged!!!")
+            # Check if face is too far from the center. TODO: test this
+            if not is_face_centered(bb):
+                print("Face is not centered!!!")
                 return False
 
-        # Get the average landmarks.
-        average_landmarks = np.mean(face_landmarks, 
-                                    axis=0).astype(int).tolist()
+            # Get a simple-cropped face with tight margins for blur detection.
+            simple_cropped_face_tight_margins = simple_crop_face(frame, bb, margin_fraction=0)
 
-        # Morph-align all the faces to the averaged landmarks.
-        morph_aligned_faces = []
+            # Test if the image is too blurry.
+            if quantify_blur(simple_cropped_face_tight_margins) > blur_threshold:
+                print("Face is blurry!!!")
+                return False
 
-        for source_face_path, source_face_landmarks in zip(face_paths, face_landmarks):
-            source_face = cv2.imread(source_face_path)
-            morphed_face = morph_align_face(source_face=source_face,
-                                            source_face_landmarks=source_face_landmarks,
-                                            target_face_landmarks=average_landmarks,
-                                            triangulation_indexes=None)
+            if not is_face_wide_enough(image=frame,
+                                    bbox=bb,
+                                    min_width=min_width):
+                print("Face is too small!")
+                return False
+
+            # Simple crop the image to the bounding box.
+            # TODO: this will have to be large to accomodate the face mesh crop.
+            # NOTE: this might capture multiple faces and introduce bugs.
+            simple_cropped_face_with_margin = simple_crop_face(image=frame,
+                                                            bbox=bb,
+                                                            margin_fraction=margin_fraction)
+
+            if debug_images:
+                cv2.imshow("Simple cropped face with margin", simple_cropped_face_with_margin)
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
+
+            # Get the face_mesh landmarks.
+            face_mesh_results = face_mesh.process(simple_cropped_face_with_margin)
             
-            morph_aligned_faces.append(morphed_face)
+            # If there are no results, return False
+            if not face_mesh_results:
+                return False
+            if not face_mesh_results.multi_face_landmarks:
+                return False
 
-        if morph_aligned_faces and debug_images:
-            cv2.imshow("Morph-aligned face", morph_aligned_faces[0])
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
+            # Get the landmarks.
+            landmarks = face_mesh_results.multi_face_landmarks[0]
 
-        # Create an average face image for this dataset.
-        average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
+            if not landmarks:
+                print("No landmarks detected!")
+                return False
 
-        # Save the averaged image.
-        averaged_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-            "_" + str(uuid.uuid4())[:8] + ".jpg"
-        averaged_filepath = f"images/averages/{averaged_filename}.jpg"
-        cv2.imwrite(averaged_filepath, average_face)
+            # Check if it's looking forward.
+            face_height, face_width, _ = simple_cropped_face_with_margin.shape
+            face_forward = is_face_looking_forward(face_landmarks=landmarks,
+                                                image_height=face_height,
+                                                image_width=face_width)
 
-        # Create collages from these morphs.
-        collage_frames = []
+            # If it's not looking forward, return False
+            if not face_forward:
+                print("Face isn't looking forward")
+                return False
 
-        for _ in range(num_frames_in_collage_animation):
-            composite = create_composite_image(image_list=morph_aligned_faces,
-                                               num_squares_height=90)
+            if debug_images:    
+                # Annotate the frame.
+                face_annotated = np.copy(simple_cropped_face_with_margin)
+                cv2.putText(simple_cropped_face_with_margin, f"{face_forward}",
+                            (10, 80),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            3,
+                            (0, 255, 0),
+                            2,
+                            cv2.LINE_AA)
+                cv2.imshow("Forward face", face_annotated)
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
 
-            collage_frames.append(composite)
+            # Process the images with face_mesh to rotate and align the pupils.
+            try:
+                face_cropped_rotated = \
+                    crop_align_image_based_on_eyes(image=simple_cropped_face_with_margin,
+                                                l=l,
+                                                r=r,
+                                                t=t,
+                                                b=b)
+            except ValueError as e:
+                print("Error face crop/rotate!")
+                print(e)
+                return False
 
-        if collage_frames and debug_images:
-            cv2.imshow("MAIN: Collaged face", morph_aligned_faces[0])
-            cv2.waitKey(3000)
-            cv2.destroyAllWindows()
+            if debug_images:
+                cv2.imshow("Face, cropped and pupil-aligned", face_cropped_rotated)
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
 
-        # Save the collage frames
-        collage_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-            "_" + str(uuid.uuid4())[:8] + ".jpg"
-        collage_filepath = f"images/collages/{collage_filename}.npz"
-        np.savez(collage_filepath, *collage_frames)
+            # Resize the image
+            face_cropped_rotated_resized = cv2.resize(face_cropped_rotated, 
+                                                    (width_output, height_output))
+            
+            if debug_images:
+                cv2.imshow("Face, resized", face_cropped_rotated_resized)
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
 
-        # Save to database.
-        insert_face_mapping(db_path=mappings_db,
-                            avg_face_path=averaged_filepath,
-                            animated_face_path=collage_filepath,
-                            face_list=face_paths)
+            # Check if the face has been seen before.
+            # NOTE: use the face that has not been rotated and resized, as face_recognition
+            # often fails with rotated images (unsure why!)
+            simple_cropped_face_with_margin = cv2.cvtColor(simple_cropped_face_with_margin, cv2.COLOR_BGR2RGB)
+            new_face_embedding = face_recognition.face_encodings(simple_cropped_face_with_margin)
+
+            # If the face was able to be successfully embedded
+            if not new_face_embedding:
+                print("Face could not be embedded!!!")
+                return False
+
+            # Get the face embedding.
+            # TODO: why index with [0] - probably because multiple embeddings might
+            # be returned if the image has multiple faces...
+            # NOTE: this is a potential source of bugs.
+            new_face_embedding = new_face_embedding[0]
+
+            # Get recent embeddings.
+            recent_embeddings = get_recent_embeddings(db_path="face_embeddings.db",
+                                                    num_embeddings=face_memory)
+
+            # Check if the face has been recently recognized (embedded).
+            results = face_recognition.compare_faces(recent_embeddings,
+                                                    new_face_embedding,
+                                                    tolerance=tolerance)
+
+            if any(results):
+                print("The face has been seen before!!!")
+                return False
+
+            # Save the processed face.
+            embedding_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
+                "_" + str(uuid.uuid4())[:8] + ".jpg"
+            embedding_filepath = f"images/faces/{embedding_filename}"
+            cv2.imwrite(embedding_filepath, face_cropped_rotated_resized)
+
+            # Get all the face landmarks for later morphing.
+            face_landmarks = get_face_landmarks(face_cropped_rotated_resized)
+            additional_landmarks = \
+                get_additional_landmarks(image_height=face_cropped_rotated_resized.shape[0],
+                                        image_width=face_cropped_rotated_resized.shape[1])
+            all_landmarks = face_landmarks + additional_landmarks
+
+            # Insert the image path and embedding into the database.
+            insert_embedding(db_path=embeddings_db,
+                            face_path=embedding_filepath,
+                            landmarks=all_landmarks,
+                            embedding=new_face_embedding)
+
+            ########################################################
+            ################### Animation phase! ###################
+            ########################################################
+
+            # Collect the most recently processed faces from the database.
+            face_paths, face_landmarks = \
+                query_recent_landmarks(db_path="face_embeddings.db",
+                                    n=max_num_faces_in_collage)
+
+            if len(face_paths) < min_num_faces_in_collage:
+                print("Not enough faces to collage!!!")
+                return False
+
+            # Read the current face_paths into a Counter where order doesn't matter but repeats do
+            current_face_counter = Counter(face_paths)
+
+            # Read the face_mapping database's `faces` column into a list of counters.
+            face_lists = read_face_list(db_path=mappings_db)
+            face_counters = [Counter(l) for l in face_lists]
+
+            # Go through all the previously analyzed faces.
+            for faces in face_counters:
+
+                # Check if the faces have already been analyzed.
+                if current_face_counter == faces:
+                    print("Faces have already been averaged!!!")
+                    return False
+
+            # Get the average landmarks.
+            average_landmarks = np.mean(face_landmarks, 
+                                        axis=0).astype(int).tolist()
+
+            # Morph-align all the faces to the averaged landmarks.
+            morph_aligned_faces = []
+
+            for source_face_path, source_face_landmarks in zip(face_paths, face_landmarks):
+                source_face = cv2.imread(source_face_path)
+                morphed_face = morph_align_face(source_face=source_face,
+                                                source_face_landmarks=source_face_landmarks,
+                                                target_face_landmarks=average_landmarks,
+                                                triangulation_indexes=None)
+                
+                morph_aligned_faces.append(morphed_face)
+
+            if morph_aligned_faces and debug_images:
+                cv2.imshow("Morph-aligned face", morph_aligned_faces[0])
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
+
+            # Create an average face image for this dataset.
+            average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
+
+            # Save the averaged image.
+            averaged_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
+                "_" + str(uuid.uuid4())[:8] + ".jpg"
+            averaged_filepath = f"images/averages/{averaged_filename}"
+            cv2.imwrite(averaged_filepath, average_face)
+
+            # Create collages from these morphs.
+            collage_frames = []
+
+            for _ in range(num_frames_in_collage_animation):
+                composite = create_composite_image(image_list=morph_aligned_faces,
+                                                num_squares_height=90)
+
+                collage_frames.append(composite)
+
+            if collage_frames and debug_images:
+                cv2.imshow("MAIN: Collaged face", morph_aligned_faces[0])
+                cv2.waitKey(3000)
+                cv2.destroyAllWindows()
+
+            # Save the collage frames
+            collage_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
+                "_" + str(uuid.uuid4())[:8] + ".npz"
+            collage_filepath = f"images/collages/{collage_filename}"
+            np.savez(collage_filepath, *collage_frames)
+
+            # Save to database.
+            insert_face_mapping(db_path=mappings_db,
+                                avg_face_path=averaged_filepath,
+                                collage_filepath=collage_filepath,
+                                face_list=face_paths)
+            
+    except Exception as e:
+        print("TOP LEVEL ERROR!", e)
+        return False
 
 
 
@@ -459,27 +471,27 @@ if __name__ == "__main__":
     def collect_faces_loop():
         while True:
             collect_faces(embeddings_db=config["embeddings_db"],
-                          mappings_db=config["embeddings_db"],
-                          min_num_faces_in_collage=config["embeddings_db"],
-                          max_num_faces_in_collage=config["embeddings_db"],
-                          num_frames_in_collage_animation=config["embeddings_db"],
-                          blur_threshold=config["embeddings_db"],
-                          face_memory=config["embeddings_db"],
-                          tolerance=config["embeddings_db"],
-                          min_width=config["embeddings_db"],
-                          margin_fraction=config["embeddings_db"],
-                          height_output=config["embeddings_db"],
-                          width_output=config["embeddings_db"],
-                          l=config["embeddings_db"],
-                          r=config["embeddings_db"],
-                          t=config["embeddings_db"],
-                          b=config["embeddings_db"],
-                          triangulation_indexes=config["embeddings_db"],
-                          debug_images=config["embeddings_db"])
+                          mappings_db=config["mappings_db"],
+                          min_num_faces_in_collage=config["min_num_faces_in_collage"],
+                          max_num_faces_in_collage=config["max_num_faces_in_collage"],
+                          num_frames_in_collage_animation=config["num_frames_in_collage_animation"],
+                          blur_threshold=config["blur_threshold"],
+                          face_memory=config["face_memory"],
+                          tolerance=config["tolerance"],
+                          min_width=config["min_width"],
+                          margin_fraction=config["margin_fraction"],
+                          height_output=config["height_output"],
+                          width_output=config["width_output"],
+                          l=config["l"],
+                          r=config["r"],
+                          t=config["t"],
+                          b=config["b"],
+                          triangulation_indexes=config["triangulation_indexes"],
+                          debug_images=config["debug_images"])
 
 
-    print("Starting animation loop!")
-    run_animation_loop()
+    # print("Starting animation loop!")
+    # run_animation_loop(animation_dir=config["animation_dir"])
 
     print("Starting collect faces loop!")
     collect_faces_loop()
