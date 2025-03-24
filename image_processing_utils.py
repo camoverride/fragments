@@ -1,6 +1,33 @@
 from typing import List
 import numpy as np
+import cv2
 
+
+
+def quantify_blur(image):
+    """
+    Determine if an image is blurry using the variance of the Laplacian.
+
+    Parameters:
+    - image: Input image as a NumPy array (np.ndarray).
+    - threshold: A threshold value to determine blurriness. Lower values are more sensitive to blur.
+
+    Returns:
+    - True if the image is blurry, False otherwise.
+    """
+    # Convert the image to grayscale if it's not already
+    if len(image.shape) == 3:  # Check if the image is in color (3 channels)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image  # Already grayscale
+
+    # Compute the Laplacian of the image
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+
+    # Calculate the variance of the Laplacian
+    laplacian_var = np.var(laplacian)
+
+    return laplacian_var
 
 
 def is_face_wide_enough(image: np.ndarray, bbox: dict, min_width: int) -> bool:

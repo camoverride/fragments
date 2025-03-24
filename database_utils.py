@@ -187,55 +187,6 @@ def insert_face_mapping(db_path : str,
         return False
 
 
-def query_embeddings_in_chunks(db_path : str,
-                               chunk_size : int) -> Generator[List[any], None, None]:
-    """
-    If the database is large and all the embeddings are read into
-    memory, the computer might crash. So read them incrementally
-    from the database using LIMIT/OFFSET and yield the results as
-    a generator.
-
-    Parameters
-    ----------
-    db_path : str
-        The path to the database file.
-    chunk_size : int
-        How many embeddings should be searched through at a time.
-
-    Returns
-    -------
-    Generator[List[any], None, None]
-        A generator that yields embeddings.
-    """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Keeps track of the offset for each chunk
-    offset = 0
-    while True:
-        cursor.execute("""
-            SELECT embedding FROM face_embeddings
-            LIMIT ? OFFSET ?
-        """, (chunk_size, offset))
-
-        embeddings_chunk = cursor.fetchall()
-
-        # No more embeddings to process
-        if not embeddings_chunk:
-            break  
-
-        # Deserialize embeddings and process them
-        embeddings = [pickle.loads(embedding[0]) for embedding in embeddings_chunk]
-
-        # Yield the chunk of embeddings
-        yield embeddings
-
-        # Move to the next chunk
-        offset += chunk_size
-
-    conn.close()
-
-
 def get_recent_embeddings(db_path : str,
                           num_embeddings : int):
     """
@@ -416,7 +367,7 @@ if __name__ == "__main__":
         # Define paths
         averages_dir = "images/averages"
         faces_dir = "images/faces"
-        animations_dir = "images/animations"
+        collages_dir = "images/collages"
         db_files = ["face_embeddings.db", "face_mappings.db"]
 
         # Delete all .jpg files in `images/averages`
@@ -436,7 +387,7 @@ if __name__ == "__main__":
                 print(f"Error deleting {file_path}: {e}")
 
         # Delete all .npz files in `images/animations`
-        for file_path in glob.glob(os.path.join(animations_dir, "*.npz")):
+        for file_path in glob.glob(os.path.join(collages_dir, "*.npz")):
             try:
                 os.remove(file_path)
                 print(f"Deleted: {file_path}")

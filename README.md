@@ -12,6 +12,7 @@ This is intended to be run on a Raspberry Pi 5 with a pi camera.
 - `cd fragments`
 - `python3 -m venv --system-site-packages .venv` (system-site-packages so we get the `picamera` package.)
 - `source .venv/bin/activate`
+- `pip install setuptools` (for `face_recognition` package)
 - `pip install -r requirements.txt`
 - `sudo apt-get install unclutter`
 
