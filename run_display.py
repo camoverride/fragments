@@ -87,9 +87,9 @@ def collect_faces(embeddings_db : str,
         | ID  | avg_face_path | animated_face_path | face_list |
         TODO: implement average face TODO: change to `collage_path`
     min_num_faces_in_collage : int
-        The max number of faces that will be used to create a collage.
-    max_num_faces_in_collage : int
         The min number of faces that will be used to create a collage.
+    max_num_faces_in_collage : int
+        The max number of faces that will be used to create a collage.
     num_frames_in_collage_animation : int
         The number of frames that will be in the collage animation,
         ultimately saves as a .npz archive to images/collages.
@@ -130,7 +130,7 @@ def collect_faces(embeddings_db : str,
         The top margin around the face bounding box in terms of K, where
         K is the distance between the pupils.
     b : float
-        The left margin around the face bounding box in terms of K, where
+        The bottom margin around the face bounding box in terms of K, where
         K is the distance between the pupils.
     triangulation_indexes : list or None
         The indexes of the triangles that connect all the landmarks in the
@@ -270,8 +270,10 @@ def collect_faces(embeddings_db : str,
             # Check if the face has been seen before.
             # NOTE: use the face that has not been rotated and resized, as face_recognition
             # often fails with rotated images (unsure why!)
-            simple_cropped_face_with_margin = cv2.cvtColor(simple_cropped_face_with_margin, cv2.COLOR_BGR2RGB)
-            new_face_embedding = face_recognition.face_encodings(simple_cropped_face_with_margin)
+            simple_cropped_face_with_margin = cv2.cvtColor(simple_cropped_face_with_margin,
+                                                           cv2.COLOR_BGR2RGB)
+            new_face_embedding = \
+                face_recognition.face_encodings(simple_cropped_face_with_margin)
 
             # If the face was able to be successfully embedded
             if not new_face_embedding:
@@ -285,13 +287,13 @@ def collect_faces(embeddings_db : str,
             new_face_embedding = new_face_embedding[0]
 
             # Get recent embeddings.
-            recent_embeddings = get_recent_embeddings(db_path="face_embeddings.db",
-                                                    num_embeddings=face_memory)
+            recent_embeddings = get_recent_embeddings(db_path=embeddings_db,
+                                                      num_embeddings=face_memory)
 
             # Check if the face has been recently recognized (embedded).
             results = face_recognition.compare_faces(recent_embeddings,
-                                                    new_face_embedding,
-                                                    tolerance=tolerance)
+                                                     new_face_embedding,
+                                                     tolerance=tolerance)
 
             if any(results):
                 print("The face has been seen before!!!")
@@ -322,8 +324,8 @@ def collect_faces(embeddings_db : str,
 
             # Collect the most recently processed faces from the database.
             face_paths, face_landmarks = \
-                query_recent_landmarks(db_path="face_embeddings.db",
-                                    n=max_num_faces_in_collage)
+                query_recent_landmarks(db_path=embeddings_db,
+                                       n=max_num_faces_in_collage)
 
             if len(face_paths) < min_num_faces_in_collage:
                 print("Not enough faces to collage!!!")
@@ -453,7 +455,8 @@ def run_animation_loop(animation_dir : str) -> None:
 
                 # if we're playing a jpg, use it.
                 elif current_play_file_path.endswith(".jpg"):
-                    current_play_files.append(cv2.imread(current_play_file_path))
+                    # This should only ever contain 1 image.
+                    current_play_files = [cv2.imread(current_play_file_path)]
 
         # If files have been stored here, play them.
         if current_play_files:
@@ -490,8 +493,9 @@ if __name__ == "__main__":
                           debug_images=config["debug_images"])
 
 
-    # print("Starting animation loop!")
-    # run_animation_loop(animation_dir=config["animation_dir"])
+    # Create thread for collecting faces.
+    collect_faces_thread = threading.Thread(target=collect_faces_loop)
+    collect_faces_thread.start()
 
-    print("Starting collect faces loop!")
-    collect_faces_loop()
+    # This will continue forever.
+    run_animation_loop(config["animation_dir"])
