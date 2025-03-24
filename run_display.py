@@ -394,63 +394,92 @@ def collect_faces(embeddings_db : str,
 
 
 
-def run_animation_loop() -> None:
+def run_animation_loop(animation_dir : str) -> None:
     """
-    
+    Looks for the most recent image (.jpg) or archive (.npz)
+    in the `animation_dir`. If this has changed, load the file(s)
+    to `current_play_files` as np.ndarray images. Otherwise continue
+    playing files from `current_play_files`.
+
+    Parameters
+    ----------
+    animation_dir : str
+        The path to the directory containing a .jpg or .npz
+        to be displayed.
+    Returns
+    -------
+    None
+        Displays image frames.
     """
-    current_video_file_path = None
-    frames = None
+    # The path to the current file.
+    current_play_file_path = None
+
+    # The file(s) unpacked into np.ndarray images.
+    current_play_files = []
 
     while True:
-        # Check if the most recent file has changed.
-        video_file_paths = [os.path.join(root, file) for root, _, files 
-                           in os.walk("images/collages") for file in files 
-                           if file.endswith(".npz")]
-        video_file_paths = sorted(video_file_paths, key=os.path.getmtime)
+        # Get paths to all the files.
+        display_file_paths = [os.path.join(root, file) for root, _, files 
+                              in os.walk(animation_dir) for file in files 
+                              if file.endswith(".npz")
+                              or file.endswith(".jpg")]
+        display_file_paths = sorted(display_file_paths, key=os.path.getmtime)
 
-        # Check if the most recent video has changed. NOTE: `None != []`
-        # This will create a small pause when reading the file.
+        if not display_file_paths:
+            print("No files to display!")
 
-        if current_video_file_path != video_file_paths[-1]:
-            current_video_file_path = video_file_paths[-1]
-            with np.load(current_video_file_path) as data:
-                frames = [data[key] for key in data]
+        else:
+            # Check if the most recent video has changed.
+            # Note: `None == [] # False`
+            if current_play_file_path != display_file_paths[-1]:
+                current_play_file_path = display_file_paths[-1]
 
-        if frames:
-            for frame in frames:
-                cv2.imshow("Collage", frame)
+                # If we're playing an animation, unpack them.
+                if current_play_file_path.endswith(".npz"):
+                    with np.load(current_play_file_path) as data:
+                        current_play_files = [data[key] for key in data]
+
+                # if we're playing a jpg, use it.
+                elif current_play_file_path.endswith(".jpg"):
+                    current_play_files.append(cv2.imread(current_play_file_path))
+
+        # If files have been stored here, play them.
+        if current_play_files:
+            for image in current_play_files:
+                cv2.imshow("Collage or Average", image)
                 cv2.waitKey(100)
-
-
                 
 
 if __name__ == "__main__":
 
-    # print("starting animation loop")
-    # run_animation_loop()
+    # Load the YAML file
+    with open("config.yaml", "r") as file:
+        config = yaml.safe_load(file)
 
-    print("Starting college faces")
-    while True:
-        collect_faces(embeddings_db="face_embeddings.db",
-                      mappings_db="face_mappings.db",
-                      min_num_faces_in_collage=2,
-                      max_num_faces_in_collage=6,
-                      num_frames_in_collage_animation=50,
-                      blur_threshold=180, # definitely check on this!
-                      face_memory=6, # How many faces before the same is allowed again?
-                      tolerance=0.6, # 0.6 seems good
-                      min_width=200, # probably increase above 500
-                      margin_fraction=1.0, # this might need to be even wider TODO
-                      height_output=600, # depends on monitor
-                      width_output=500, # depends on monitor
-                      l=1.5, # 1.5
-                      r=1.5, # 1.5
-                      t=2.0, # 1.5
-                      b=3.5, # 3.0
-                      triangulation_indexes=None,
-                      debug_images=True)
+    def collect_faces_loop():
+        while True:
+            collect_faces(embeddings_db=config["embeddings_db"],
+                          mappings_db=config["embeddings_db"],
+                          min_num_faces_in_collage=config["embeddings_db"],
+                          max_num_faces_in_collage=config["embeddings_db"],
+                          num_frames_in_collage_animation=config["embeddings_db"],
+                          blur_threshold=config["embeddings_db"],
+                          face_memory=config["embeddings_db"],
+                          tolerance=config["embeddings_db"],
+                          min_width=config["embeddings_db"],
+                          margin_fraction=config["embeddings_db"],
+                          height_output=config["embeddings_db"],
+                          width_output=config["embeddings_db"],
+                          l=config["embeddings_db"],
+                          r=config["embeddings_db"],
+                          t=config["embeddings_db"],
+                          b=config["embeddings_db"],
+                          triangulation_indexes=config["embeddings_db"],
+                          debug_images=config["embeddings_db"])
 
 
-"""
-Issue: the simple crop margins are too wide and might capture additional faces!
-"""
+    print("Starting animation loop!")
+    run_animation_loop()
+
+    print("Starting collect faces loop!")
+    collect_faces_loop()
