@@ -50,4 +50,5 @@ Get the logs: `journalctl --user -u display.service`
 - [ ] fix issue with simple_crop getting too-large area
 - [ ] install on Rpi
 - [ ] test on Rpi
-- [ ] integrate swapping between Fragments and Averages
+- [X] integrate swapping between Fragments and Averages
+- [ ] currently, collages look bad when using random phone data, check to make sure they look good in the wild too!

@@ -3,7 +3,7 @@ embeddings_db: face_embeddings.db
 mappings_db: face_mappings.db
 
 # Display dataset path
-animation_dir: images/collages # animations/averages
+animation_dirs: [images/collages, images/averages]
 
 # Collage parameters
 min_num_faces_in_collage: 6

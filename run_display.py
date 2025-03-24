@@ -408,18 +408,19 @@ def collect_faces(embeddings_db : str,
 
 
 
-def run_animation_loop(animation_dir : str) -> None:
+def run_animation_loop(animation_dirs : str) -> None:
     """
     Looks for the most recent image (.jpg) or archive (.npz)
-    in the `animation_dir`. If this has changed, load the file(s)
-    to `current_play_files` as np.ndarray images. Otherwise continue
-    playing files from `current_play_files`.
+    in one of the folders listed in the `animation_dirs`. If
+    this file has changed, load the file(s) to `current_play_files`
+    as np.ndarray images. Otherwise continue playing files from
+    `current_play_files`.
 
     Parameters
     ----------
-    animation_dir : str
-        The path to the directory containing a .jpg or .npz
-        to be displayed.
+    animation_dirs : list
+        A list of paths to directories containing either
+        a .jpg or .npz to be displayed.
     Returns
     -------
     None
@@ -432,6 +433,17 @@ def run_animation_loop(animation_dir : str) -> None:
     current_play_files = []
 
     while True:
+        # Allow for switching between animation types.
+        # Get the current time
+        current_time = datetime.now()
+
+        # Check if the current minute is odd or even
+        if current_time.minute % 2 == 0:
+            animation_dir = animation_dirs[0]
+        else:
+            animation_dir = animation_dirs[-1]
+
+
         # Get paths to all the files.
         display_file_paths = [os.path.join(root, file) for root, _, files 
                               in os.walk(animation_dir) for file in files 
@@ -498,4 +510,4 @@ if __name__ == "__main__":
     collect_faces_thread.start()
 
     # This will continue forever.
-    run_animation_loop(config["animation_dir"])
+    run_animation_loop(config["animation_dirs"])
