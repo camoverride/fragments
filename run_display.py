@@ -43,7 +43,8 @@ memory_lock = threading.Lock()
 
 
 
-def collect_faces(embeddings_db : str,
+def collect_faces(camera_type : str,
+                  embeddings_db : str,
                   mappings_db : str,
                   save_images_to_disk : bool,
                   min_num_faces_in_collage : int,
@@ -93,6 +94,8 @@ def collect_faces(embeddings_db : str,
     
     Parameters
     ----------
+    camera_type : str
+        Whether we're using the `picam`, `webcam` etc.
     embeddings_db : str
         The path to a database of face embeddings with the schema:
         | ID | face_path | landmarks | embedding |
@@ -180,7 +183,8 @@ def collect_faces(embeddings_db : str,
     # Wrap everything in a giant try/except
     try:
         # Get an image from the webcam along with face bounding boxes.
-        frame, bbs = get_faces_from_webcam(debug=debug_images)
+        frame, bbs = get_faces_from_camera(camera_type=camera_type,
+                                           debug=debug_images)
 
         # If bbs exists, then faces have been detected.
         if not bbs:
@@ -598,7 +602,8 @@ if __name__ == "__main__":
 
     def collect_faces_loop():
         while True:
-            collect_faces(embeddings_db=config["embeddings_db"],
+            collect_faces(camera_type=config["camea_type"],
+                          embeddings_db=config["embeddings_db"],
                           mappings_db=config["mappings_db"],
                           save_images_to_disk=config["save_images_to_disk"],
                           min_num_faces_in_collage=config["min_num_faces_in_collage"],

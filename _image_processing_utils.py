@@ -4,6 +4,7 @@ import cv2
 import mediapipe as mp
 import random
 import numpy as np
+import yaml
 
 
 
@@ -19,6 +20,19 @@ face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True,
                                             max_num_faces=1,
                                             refine_landmarks=True,
                                             min_detection_confidence=0.5)
+
+# Load the YAML file
+with open("config.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
+if config["camera_type"] == "picam":
+    from picamera2 import Picamera2
+
+    # Initialize the picamera
+    picam2 = Picamera2()
+    picam2.configure(picam2.create_preview_configuration(main={"format": "RGB888",}))
+                                                                # "size": (WIDTH, HEIGHT)}))
+    picam2.start()
 
 
 def get_face_landmarks(image : np.ndarray) -> List[List[int]]:
@@ -797,7 +811,8 @@ def create_composite_image(image_list: List[np.ndarray], num_squares_height: int
 
 
 
-def get_faces_from_webcam(debug : bool):
+def get_faces_from_camera(camera_type : str,
+                          debug : bool):
     """
     If a face is detected, a tuple (np.ndarray, list) is
     returned, where the first element is a frame from the
@@ -822,10 +837,13 @@ def get_faces_from_webcam(debug : bool):
         is a frame from the webcam, and the second element
         is a list of bounding boxes that contain faces.
     """
-    # Get a frame from the webcam.
-    ret, frame = cap.read()
-    if not ret:
-        raise ValueError("Failed to capture image from webcam.")
+    if camera_type == "webcam":
+        # Get a frame from the webcam.
+        ret, frame = cap.read()
+        if not ret:
+            raise ValueError("Failed to capture image from webcam.")
+    elif camera_type == "picam":
+        frame = picam2.capture_array()
 
     if debug:
         cv2.imshow("Image from webcam", frame)

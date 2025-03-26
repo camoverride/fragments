@@ -1,3 +1,6 @@
+# Camera type
+camera_type: picam
+
 # Database paths
 embeddings_db: face_embeddings.db
 mappings_db: face_mappings.db
