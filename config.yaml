@@ -5,6 +5,10 @@ mappings_db: face_mappings.db
 # Display dataset path
 animation_dirs: [images/collages, images/averages]
 
+# Should the images be saved to disk, or stored in memory only?
+# NOTE: if True, then enabling a write-only SD card will fail!
+save_images_to_disk: False
+
 # Collage parameters
 min_num_faces_in_collage: 6
 max_num_faces_in_collage: 8
