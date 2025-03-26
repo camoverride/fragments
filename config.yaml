@@ -10,12 +10,12 @@ animation_dirs: [images/collages, images/averages]
 save_images_to_disk: False
 
 # Collage parameters
-min_num_faces_in_collage: 6
+min_num_faces_in_collage: 1
 max_num_faces_in_collage: 8
 num_frames_in_collage_animation: 50
 
 # Image processing parameters
-blur_threshold: 180 # Definitely check on this - depends on camera (50 - 200)
+blur_threshold: 1000 # Definitely check on this - depends on camera (50 - 200)
 min_width: 250
 margin_fraction: 1.0 # This might need to be wider. NOTE: source of bugs!
 height_output: 600 # Should be same as monitor height

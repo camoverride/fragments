@@ -8,6 +8,7 @@ import face_recognition
 import numpy as np
 import os
 import mediapipe as mp
+import time
 
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_webcam, get_face_landmarks, get_additional_landmarks, morph_align_face, \
@@ -172,6 +173,10 @@ def collect_faces(embeddings_db : str,
         If collage conditions are met, .npz archices of animations
         are written to `images/collages`.
     """
+    # Declare all the globals
+    global processed_faces, processed_face_landmarks, recent_embeddings, \
+           averaged_faces, collaged_faces, animated_faces
+
     # Wrap everything in a giant try/except
     try:
         # Get an image from the webcam along with face bounding boxes.
@@ -483,6 +488,7 @@ def collect_faces(embeddings_db : str,
 
                 # Append everything!
                 with memory_lock:
+                    print("Adding face to memory!!!")
                     averaged_faces.insert(0, average_face)
                     collaged_faces.insert(0, collage_frames)
 
@@ -572,11 +578,16 @@ def run_animation_loop(animation_dirs : str,
 
     else:
         while True:
-            if averaged_faces:
-                # TODO: only implemented Swarm!
-                cv2.imshow("Collage or Average", averaged_faces[0])
-                cv2.waitKey(1000)
-
+            with memory_lock:
+                if averaged_faces:  # Only check the list you actually use for display
+                    cv2.imshow("Collage or Average", averaged_faces[0])
+            
+            # CRITICAL: This keeps OpenCV responsive
+            if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
+                break
+            
+            # Small sleep to prevent CPU overload (optional)
+            time.sleep(0.01)
                 
 
 if __name__ == "__main__":
@@ -609,8 +620,8 @@ if __name__ == "__main__":
 
 
     # Create thread for collecting faces.
-    collect_faces_thread = threading.Thread(target=collect_faces_loop)
-    collect_faces_thread.start()
+    threading.Thread(target=collect_faces_loop, daemon=True).start()
 
     # This will continue forever.
-    run_animation_loop(config["animation_dirs"])
+    run_animation_loop(animation_dirs=config["animation_dirs"],
+                       save_images_to_disk=config["save_images_to_disk"])
