@@ -202,8 +202,6 @@ def align_eyes_horizontally(image : np.ndarray,
     # Read the image.
     image_rgb = image #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(image_rgb)
-    cv2.imshow("IMAGE RGBBBBBBB", image_rgb)
-    cv2.waitKey(5000)
     
     if not results.multi_face_landmarks:
         raise ValueError("Alignment phase: no face detected.")
@@ -924,7 +922,6 @@ def get_faces_from_camera(camera_type : str,
 
     # If there are no faces, return False.
     if not frame_data.detections:
-        logging.warning("No faces detected!")
         return False, False
 
     # If there are faces, return the frame and listf of bounding boxes.
