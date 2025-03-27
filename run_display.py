@@ -196,7 +196,7 @@ def collect_faces(camera_type : str,
 
         # If bbs exists, then faces have been detected.
         if not bbs:
-            logging.warning("No faces detected!!!")
+            logging.debug("No faces detected!!!")
             return False
 
         # There might be multiple faces in the image.
@@ -317,7 +317,7 @@ def collect_faces(camera_type : str,
 
             # If the face was able to be successfully embedded
             if not new_face_embedding:
-                logging.info("Face could not be embedded!!!")
+                logging.warning("Face could not be embedded!!!")
                 return False
 
             # Get the face embedding.

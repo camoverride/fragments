@@ -1009,7 +1009,7 @@ def get_average_face(images : List[np.ndarray]) -> np.ndarray:
 
         # Check if the image was loaded successfully
         if image is None:
-            logging.warn(f"Warning: Could not load image. Skipping.")
+            logging.info(f"Could not load image. Skipping.")
             continue
 
         # Convert the image to float32 for accurate summation
