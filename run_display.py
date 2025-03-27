@@ -474,7 +474,7 @@ def collect_faces(camera_type : str,
                 # Get the average landmarks.
 
                 for lm in processed_face_landmarks:
-                    print(lm.shape)
+                    print(len(lm))
                 average_landmarks = np.mean(processed_face_landmarks, 
                                             axis=0).astype(int).tolist()
 
