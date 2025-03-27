@@ -647,5 +647,5 @@ if __name__ == "__main__":
     threading.Thread(target=collect_faces_loop, daemon=True).start()
 
     # This will continue forever.
-    run_animation_loop(animation_dirs=config["animation_dirs"],
-                       save_images_to_disk=config["save_images_to_disk"])
+    # run_animation_loop(animation_dirs=config["animation_dirs"],
+    #                    save_images_to_disk=config["save_images_to_disk"])
