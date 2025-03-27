@@ -9,6 +9,7 @@ import numpy as np
 import os
 import mediapipe as mp
 import time
+import logging
 
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, morph_align_face, \
@@ -16,6 +17,13 @@ is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_land
 from _database_utils import insert_embedding, read_face_list, \
 query_recent_landmarks, get_recent_embeddings, insert_face_mapping
 
+
+
+# Set up basic logging
+logging.basicConfig(
+    level=logging.INFO,  # Minimum level to log
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 # Initialize MediaPipe FaceMesh
 face_mesh = mp.solutions.face_mesh.FaceMesh(
@@ -188,7 +196,7 @@ def collect_faces(camera_type : str,
 
         # If bbs exists, then faces have been detected.
         if not bbs:
-            print("No faces detected!!!")
+            logging.info("No faces detected!!!")
             return False
 
         # There might be multiple faces in the image.
@@ -196,7 +204,7 @@ def collect_faces(camera_type : str,
 
             # Check if face is too far from the center. TODO: test this
             # if not is_face_centered(bb):
-            #     print("Face is not centered!!!")
+            #     logging.info("Face is not centered!!!")
             #     return False
 
             # Get a simple-cropped face with tight margins for blur detection.
@@ -206,13 +214,13 @@ def collect_faces(camera_type : str,
 
             # Test if the image is too blurry.
             if quantify_blur(simple_cropped_face_tight_margins) > blur_threshold:
-                print("Face is blurry!!!")
+                logging.info("Face is blurry!!!")
                 return False
 
             if not is_face_wide_enough(image=frame,
                                        bbox=bb,
                                        min_width=min_width):
-                print("Face is too small!")
+                logging.info("Face is too small!")
                 return False
 
             # Simple crop the image to the bounding box.
@@ -242,7 +250,7 @@ def collect_faces(camera_type : str,
             landmarks = face_mesh_results.multi_face_landmarks[0]
 
             if not landmarks:
-                print("No landmarks detected!")
+                logging.info("No landmarks detected!")
                 return False
 
             # Check if it's looking forward.
@@ -253,7 +261,7 @@ def collect_faces(camera_type : str,
 
             # If it's not looking forward, return False
             if not face_forward:
-                print("Face isn't looking forward")
+                logging.info("Face isn't looking forward")
                 return False
 
             if debug_images:    
@@ -280,8 +288,8 @@ def collect_faces(camera_type : str,
                                                    t=t,
                                                    b=b)
             except ValueError as e:
-                print("Error face crop/rotate!")
-                print(e)
+                logging.warning("Error face crop/rotate!")
+                logging.warning(e)
                 return False
 
             if debug_images:
@@ -308,7 +316,7 @@ def collect_faces(camera_type : str,
 
             # If the face was able to be successfully embedded
             if not new_face_embedding:
-                print("Face could not be embedded!!!")
+                logging.info("Face could not be embedded!!!")
                 return False
 
             # Get the face embedding.
@@ -333,7 +341,7 @@ def collect_faces(camera_type : str,
                                                      tolerance=tolerance)
 
             if any(results):
-                print("The face has been seen before!!!")
+                logging.info("The face has been seen before!!!")
                 return False
 
             # Get all the face landmarks for later morphing.
@@ -381,7 +389,7 @@ def collect_faces(camera_type : str,
                                            n=max_num_faces_in_collage)
 
                 if len(face_paths) < min_num_faces_in_collage:
-                    print("Not enough faces to collage!!!")
+                    logging.info("Not enough faces to collage!!!")
                     return False
 
                 # Read the current face_paths into a Counter where
@@ -398,7 +406,7 @@ def collect_faces(camera_type : str,
 
                     # Check if the faces have already been analyzed.
                     if current_face_counter == faces:
-                        print("Faces have already been averaged!!!")
+                        logging.info("Faces have already been averaged!!!")
                         return False
 
                 # Get the average landmarks.
@@ -492,7 +500,7 @@ def collect_faces(camera_type : str,
 
                 # Append everything!
                 with memory_lock:
-                    print("Adding face to memory!!!")
+                    logging.info("Adding face to memory!!!")
                     averaged_faces.insert(0, average_face)
                     collaged_faces.insert(0, collage_frames)
 
@@ -501,7 +509,7 @@ def collect_faces(camera_type : str,
                     collaged_faces = collaged_faces[:face_memory]
 
     except Exception as e:
-        print("TOP LEVEL ERROR!", e)
+        logging.warning("TOP LEVEL ERROR!", e)
         return False
 
 
@@ -556,7 +564,7 @@ def run_animation_loop(animation_dirs : str,
             display_file_paths = sorted(display_file_paths, key=os.path.getmtime)
 
             if not display_file_paths:
-                print("No files to display!")
+                logging.info("No files to display!")
 
             else:
                 # Check if the most recent video has changed.
@@ -599,7 +607,7 @@ def run_animation_loop(animation_dirs : str,
                 # Small sleep to prevent CPU overload (optional)
                 time.sleep(0.01)
             except Exception as e:
-                print(e)
+                logging.warning(e)
                 
 
 if __name__ == "__main__":

@@ -5,8 +5,15 @@ import mediapipe as mp
 import random
 import numpy as np
 import yaml
+import logging
 
 
+
+# Set up basic logging
+logging.basicConfig(
+    level=logging.INFO,  # Minimum level to log
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 # Initialize image capture.
 cap = cv2.VideoCapture(0)
@@ -34,7 +41,7 @@ if config["camera_type"] == "picam":
         main={"size": (1920, 1080), "format": "RGB888"},
         lores={"size": (640, 480)},
         display="main"))
-                                                                # "size": (WIDTH, HEIGHT)}))
+    
     picam2.start()
 
 
@@ -858,7 +865,7 @@ def get_faces_from_camera(camera_type : str,
 
     # If there are no faces, return False.
     if not frame_data.detections:
-        print("No faces detected!")
+        logging.warn("No faces detected!")
         return False, False
 
     # If there are faces, return the frame and listf of bounding boxes.
@@ -946,7 +953,7 @@ def get_average_face(images : List[np.ndarray]) -> np.ndarray:
 
         # Check if the image was loaded successfully
         if image is None:
-            print(f"Warning: Could not load image . Skipping.")
+            logging.warn(f"Warning: Could not load image. Skipping.")
             continue
 
         # Convert the image to float32 for accurate summation
