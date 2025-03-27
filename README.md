@@ -60,15 +60,15 @@ Get the logs: `journalctl --user -u display.service`
 
 - [X] add config
 - [X] code cleanup
-- [ ] integrate picam
-- [ ] fix issue with simple_crop getting too-large area
-- [ ] install on Rpi
-- [ ] test on Rpi
+- [X] integrate picam
+- [X] fix issue with simple_crop getting too-large area
+- [X] install on Rpi
+- [X] test on Rpi
 - [X] integrate swapping between Fragments and Averages
-- [ ] currently, collages look bad when using random phone data, check to make sure they look good in the wild too!
+- [X] currently, collages look bad when using random phone data, check to make sure they look good in the wild too!
 
 - [ ] add randomness in sampling (recency bias)
-- [ ] improve logging
-- [ ] test threading, locks, etc. Fails if things dont write, uneven list lens for in-mem mode etc
+- [X] improve logging
+- [X] test threading, locks, etc. Fails if things dont write, uneven list lens for in-mem mode etc
 
 - [ ] explicitly set `swarm`, `fragments` or `both` mode
