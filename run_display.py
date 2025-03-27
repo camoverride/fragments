@@ -610,7 +610,7 @@ if __name__ == "__main__":
 
     def collect_faces_loop():
         while True:
-            collect_faces(camera_type=config["camea_type"],
+            collect_faces(camera_type=config["camera_type"],
                           embeddings_db=config["embeddings_db"],
                           mappings_db=config["mappings_db"],
                           save_images_to_disk=config["save_images_to_disk"],
