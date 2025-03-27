@@ -13,7 +13,7 @@ import logging
 
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, morph_align_face, \
-    create_composite_image, is_face_looking_forward, crop_align_image_based_on_eyes
+    create_composite_image, is_face_looking_forward, crop_align_image_based_on_eyes, get_average_face
 from _database_utils import insert_embedding, read_face_list, \
 query_recent_landmarks, get_recent_embeddings, insert_face_mapping
 
@@ -472,6 +472,9 @@ def collect_faces(camera_type : str,
             # If `save_images_to_disk` == False
             else:
                 # Get the average landmarks.
+
+                for lm in processed_face_landmarks:
+                    print(lm.shape)
                 average_landmarks = np.mean(processed_face_landmarks, 
                                             axis=0).astype(int).tolist()
 
@@ -488,7 +491,8 @@ def collect_faces(camera_type : str,
                     morph_aligned_faces.append(morphed_face)
 
                 # Create an average face image for this dataset.
-                average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
+                # average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
+                average_face = get_average_face(morph_aligned_faces)
 
                 # Create collages from these morphs.
                 collage_frames = []
