@@ -36,4 +36,4 @@ tolerance: 0.6 # Face recognition tolerance.
 
 # Other parameters
 triangulation_indexes: None # This should be changed to a pre-computer path.
-debug_images: True
+debug_images: False
