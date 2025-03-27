@@ -31,11 +31,9 @@ if config["camera_type"] == "picam":
     # Initialize the picamera
     picam2 = Picamera2()
     picam2.configure(picam2.create_preview_configuration(
-                     main={"size": (1920, 1080)},
-                     lores={"size": (640, 480)},  # Required for some reason
-                     display="main"  # Direct display output
-                    )
-                    )
+        main={"size": (1920, 1080), "format": "RGB888"},
+        lores={"size": (640, 480)},
+        display="main"))
                                                                 # "size": (WIDTH, HEIGHT)}))
     picam2.start()
 
