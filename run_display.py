@@ -195,9 +195,9 @@ def collect_faces(camera_type : str,
         for bb in bbs:
 
             # Check if face is too far from the center. TODO: test this
-            if not is_face_centered(bb):
-                print("Face is not centered!!!")
-                return False
+            # if not is_face_centered(bb):
+            #     print("Face is not centered!!!")
+            #     return False
 
             # Get a simple-cropped face with tight margins for blur detection.
             simple_cropped_face_tight_margins = simple_crop_face(frame,
