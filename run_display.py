@@ -472,6 +472,9 @@ def collect_faces(camera_type : str,
             # If `save_images_to_disk` == False
             else:
                 # Get the average landmarks.
+                if len(set(len(lm) for lm in processed_face_landmarks)) != 1:
+                    logging.warning("Landmarks have inconsistent shapes, skipping averaging.")
+                    return False
                 average_landmarks = np.mean(processed_face_landmarks, 
                                             axis=0).astype(int).tolist()
 
