@@ -472,9 +472,6 @@ def collect_faces(camera_type : str,
             # If `save_images_to_disk` == False
             else:
                 # Get the average landmarks.
-
-                for lm in processed_face_landmarks:
-                    print(len(lm))
                 average_landmarks = np.mean(processed_face_landmarks, 
                                             axis=0).astype(int).tolist()
 
