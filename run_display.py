@@ -609,6 +609,9 @@ if __name__ == "__main__":
     # Rotate the screen
     os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
 
+    # Change resolution to max supported
+    os.system(f"wlr-randr --output HDMI-A-1 --mode 1920x1080@60.000000")
+
     # Hide the mouse
     os.system("unclutter -idle 0 &")
 

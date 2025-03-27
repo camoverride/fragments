@@ -21,8 +21,8 @@ num_frames_in_collage_animation: 50
 blur_threshold: 1000 # Definitely check on this - depends on camera (50 - 200)
 min_width: 250
 margin_fraction: 1.0 # This might need to be wider. NOTE: source of bugs!
-height_output: 600 # Should be same as monitor height
-width_output: 500 # Should be same as monitor width
+height_output: 1920 # Should be same as monitor height
+width_output: 1080 # Should be same as monitor width
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
 l: 1.5
