@@ -27,7 +27,7 @@ width_output: 1080 # Should be same as monitor width: `wlr-randr`
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
 l: 2.0
 r: 2.0
-t: 2.0
+t: 3.0
 b: 5.5
 
 # Dataset parameters
