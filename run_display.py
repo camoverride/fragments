@@ -196,7 +196,7 @@ def collect_faces(camera_type : str,
 
         # If bbs exists, then faces have been detected.
         if not bbs:
-            logging.info("No faces detected!!!")
+            logging.warning("No faces detected!!!")
             return False
 
         # There might be multiple faces in the image.
