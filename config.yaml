@@ -25,10 +25,10 @@ height_output: 1920 # Should be same as monitor height
 width_output: 1080 # Should be same as monitor width
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
-l: 1.5
-r: 1.5
-t: 2.0
-b: 3.5
+l: 2.5
+r: 2.5
+t: 2.5
+b: 5.5
 
 # Dataset parameters
 face_memory: 6 # How many faces before the same is allowed again?
@@ -36,4 +36,4 @@ tolerance: 0.6 # Face recognition tolerance.
 
 # Other parameters
 triangulation_indexes: None # This should be changed to a pre-computer path.
-debug_images: False
+debug_images: True
