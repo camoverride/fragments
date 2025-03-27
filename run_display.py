@@ -581,17 +581,25 @@ def run_animation_loop(animation_dirs : str,
                     cv2.waitKey(100)
 
     else:
+        # Set to display fullscreen
+        cv2.namedWindow("Collage or Average", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Collage or Average", cv2.WND_PROP_FULLSCREEN,
+                              cv2.WINDOW_FULLSCREEN)
+
         while True:
-            with memory_lock:
-                if averaged_faces:  # Only check the list you actually use for display
-                    cv2.imshow("Collage or Average", averaged_faces[0])
-            
-            # CRITICAL: This keeps OpenCV responsive
-            if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
-                break
-            
-            # Small sleep to prevent CPU overload (optional)
-            time.sleep(0.01)
+            try:
+                with memory_lock:
+                    if averaged_faces:  # Only check the list you actually use for display
+                        cv2.imshow("Collage or Average", averaged_faces[0])
+                
+                # CRITICAL: This keeps OpenCV responsive
+                if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
+                    break
+                
+                # Small sleep to prevent CPU overload (optional)
+                time.sleep(0.01)
+            except Exception as e:
+                print(e)
                 
 
 if __name__ == "__main__":
