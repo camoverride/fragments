@@ -282,7 +282,8 @@ def collect_faces(camera_type : str,
             # Process the images with face_mesh to rotate and align the pupils.
             try:
                 face_cropped_rotated = \
-                    crop_align_image_based_on_eyes(image=simple_cropped_face_with_margin,
+                    crop_align_image_based_on_eyes(image=frame,
+                                                   bb=bb,
                                                    l=l,
                                                    r=r,
                                                    t=t,

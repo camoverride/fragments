@@ -39,7 +39,7 @@ if config["camera_type"] == "picam":
     picam2 = Picamera2()
     picam2.configure(picam2.create_preview_configuration(
         main={"size": (1920, 1080), "format": "RGB888"},
-        lores={"size": (640, 480)},
+        # lores={"size": (640, 480)},
         display="main"))
     
     picam2.start()
@@ -127,7 +127,57 @@ def get_additional_landmarks(image_height : int,
     return int_coords
 
 
-def align_eyes_horizontally(image : np.ndarray) -> tuple:
+def _select_face_by_overlap(image, results, bb) -> int:
+    """
+    Selects face mesh with maximum overlap with bounding box.
+    
+    Parameters
+    ----------
+    image : np.ndarray
+        Input image
+    results : mediapipe face mesh results
+    bb : mediapipe.framework.formats.location_data.RelativeBoundingBox
+        MediaPipe's bounding box format
+    
+    Returns
+    -------
+    int
+        Index of best matching face
+    """
+    # Extract bounding box coordinates
+    bb_x = bb.xmin * image.shape[1]
+    bb_y = bb.ymin * image.shape[0]
+    bb_w = bb.width * image.shape[1]
+    bb_h = bb.height * image.shape[0]
+    bb_area = bb_w * bb_h
+    
+    max_overlap = -1
+    best_idx = 0
+    
+    for i, face_landmarks in enumerate(results.multi_face_landmarks):
+        # Get face mesh bounding box
+        xs = [lm.x * image.shape[1] for lm in face_landmarks.landmark]
+        ys = [lm.y * image.shape[0] for lm in face_landmarks.landmark]
+        face_x1, face_x2 = min(xs), max(xs)
+        face_y1, face_y2 = min(ys), max(ys)
+        
+        # Calculate intersection
+        x_overlap = max(0, min(bb_x + bb_w, face_x2) - max(bb_x, face_x1))
+        y_overlap = max(0, min(bb_y + bb_h, face_y2) - max(bb_y, face_y1))
+        overlap_area = x_overlap * y_overlap
+        
+        # Normalize by target BB area
+        overlap_ratio = overlap_area / bb_area
+        
+        if overlap_ratio > max_overlap:
+            max_overlap = overlap_ratio
+            best_idx = i
+    
+    return best_idx
+
+
+def align_eyes_horizontally(image : np.ndarray,
+                            bb : tuple) -> tuple:
     """
     Rotate an image so that the eyes are positioned horizontally.
     This makes it much more straightforward for subsequent cropping.
@@ -138,6 +188,8 @@ def align_eyes_horizontally(image : np.ndarray) -> tuple:
     ----------
     image : np.ndarray
         An image that should contain a face.
+    bb : tuple
+        A bounding box containing the face we care about.
     
     Returns
     -------
@@ -148,46 +200,52 @@ def align_eyes_horizontally(image : np.ndarray) -> tuple:
         TODO: what type exactly are the mediapipe landmarks?
     """
     # Read the image.
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image_rgb = image #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(image_rgb)
+    cv2.imshow("IMAGE RGBBBBBBB", image_rgb)
+    cv2.waitKey(5000)
     
     if not results.multi_face_landmarks:
         raise ValueError("Alignment phase: no face detected.")
     
-    # Get landmarks for the pupils.
-    landmarks = results.multi_face_landmarks[0].landmark
-    left_eye = (int(landmarks[33].x * image.shape[1]),
-                int(landmarks[33].y * image.shape[0]))
-    right_eye = (int(landmarks[263].x * image.shape[1]),
-                 int(landmarks[263].y * image.shape[0]))
+    # Find face mesh with maximum overlap with bb
+    best_face_idx = _select_face_by_overlap(image_rgb, results, bb)
+    landmarks = results.multi_face_landmarks[best_face_idx].landmark
     
+
+
+        # Convert landmarks to image coordinates
+    h, w = image.shape[:2]
+    landmark_points = np.array([(lm.x * w, lm.y * h) for lm in landmarks], dtype=np.float32)
+    
+    # Calculate rotation angle
+    left_eye = landmark_points[33]
+    right_eye = landmark_points[263]
     dx = right_eye[0] - left_eye[0]
     dy = right_eye[1] - left_eye[1]
-    
-    # Get the angle the image needs to be rotated.
     angle = np.degrees(np.arctan2(dy, dx))
     
-    # Find the center of the image.
-    center = (image.shape[1] // 2, image.shape[0] // 2)
-
-    # Get the rotation matrix.
+    # Create rotation matrix
+    center = (w // 2, h // 2)
     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-
-    # Rotate the image.
-    rotated_image = cv2.warpAffine(image,
-                                   rotation_matrix,
-                                   (image.shape[1], image.shape[0]))
     
-    # Get the rotated landmarks.
-    # TODO: do this with a rotation instead of a second mediapipe call.
-    results_2 = face_mesh.process(rotated_image)
+    # Rotate image
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h))
     
-    if not results_2.multi_face_landmarks:
-        raise ValueError("Post-rotation phase: no face detected.")
+    # Rotate landmarks (add homogeneous coordinate)
+    homogeneous_landmarks = np.column_stack([landmark_points, np.ones(len(landmark_points))])
+    rotated_points = (rotation_matrix @ homogeneous_landmarks.T).T
     
-    rotated_landmarks = results_2.multi_face_landmarks[0].landmark
+    # Convert back to MediaPipe landmark format
+    rotated_landmarks = []
+    for i, (x, y) in enumerate(rotated_points):
+        landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
+        rotated_landmark = type(landmark)()
+        rotated_landmark.x = x / w
+        rotated_landmark.y = y / h
+        rotated_landmark.z = landmark.z  # Z remains unchanged in 2D rotation
+        rotated_landmarks.append(rotated_landmark)
     
-
     return rotated_image, rotated_landmarks
 
 
@@ -210,7 +268,7 @@ def crop_image_based_on_eyes(image : np.ndarray,
     image : np.ndarray
         An image containing a face that has been rotated so that the
         eyes are on a horizontal plain.
-    landmarks : TODO: what is the mediapipe type exectly?
+    landmarks : TODO: what is the mediapipe type exactly?
         Landmarks returned by mediapipe and rotated.
     l : float
         The left margin, calculated as a fraction of K.
@@ -288,6 +346,7 @@ def crop_image_based_on_eyes(image : np.ndarray,
 
 
 def crop_align_image_based_on_eyes(image : np.ndarray,
+                                   bb : list,
                                    l : float,
                                    r : float,
                                    t : float,
@@ -314,7 +373,7 @@ def crop_align_image_based_on_eyes(image : np.ndarray,
     np.ndarray
         The cropped image.
     """
-    rotated_image, rotated_landmarks = align_eyes_horizontally(image)
+    rotated_image, rotated_landmarks = align_eyes_horizontally(image, bb)
     cropped_image = crop_image_based_on_eyes(image=rotated_image,
                                              landmarks=rotated_landmarks,
                                              l=l,
@@ -865,7 +924,7 @@ def get_faces_from_camera(camera_type : str,
 
     # If there are no faces, return False.
     if not frame_data.detections:
-        logging.warn("No faces detected!")
+        logging.warning("No faces detected!")
         return False, False
 
     # If there are faces, return the frame and listf of bounding boxes.
