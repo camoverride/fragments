@@ -261,7 +261,7 @@ def collect_faces(camera_type : str,
 
             # If it's not looking forward, return False
             if not face_forward:
-                logging.info("Face isn't looking forward")
+                logging.debug("Face isn't looking forward")
                 return False
 
             if debug_images:    
