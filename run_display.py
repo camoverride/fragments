@@ -11,7 +11,7 @@ import mediapipe as mp
 import time
 
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
-is_face_centered, get_faces_from_webcam, get_face_landmarks, get_additional_landmarks, morph_align_face, \
+is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, morph_align_face, \
     create_composite_image, is_face_looking_forward, crop_align_image_based_on_eyes
 from _database_utils import insert_embedding, read_face_list, \
 query_recent_landmarks, get_recent_embeddings, insert_face_mapping
@@ -595,6 +595,14 @@ def run_animation_loop(animation_dirs : str,
                 
 
 if __name__ == "__main__":
+    # Rotate screen
+    os.environ["DISPLAY"] = ":0"
+
+    # Rotate the screen
+    os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
+
+    # Hide the mouse
+    os.system("unclutter -idle 0 &")
 
     # Load the YAML file
     with open("config.yaml", "r") as file:

@@ -12,10 +12,24 @@ This is intended to be run on a Raspberry Pi 5 with a pi camera.
 - `cd fragments`
 - `python3 -m venv --system-site-packages .venv` (system-site-packages so we get the `picamera` package.)
 - `source .venv/bin/activate`
-- `pip install setuptools` (for `face_recognition` package)
+
+Install this package for installing dlib:
+- `pip install setuptools`
+
+Install cmake which is requied by dlib which is in turn required by face_recognition:
+- `sudo apt update`
+- `sudo apt install cmake`
+- `sudo apt install build-essential cmake libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev`
+- `pip install dlib -vvv`
+
+Install remaining requirements:
 - `pip install -r requirements.txt`
+
+Install unclutter:
 - `sudo apt-get install unclutter`
-- Create the databases and clear existing files: `python _database_utils.py`
+
+Create the databases and clear existing files:
+- `python _database_utils.py`
 
 
 ## Test
