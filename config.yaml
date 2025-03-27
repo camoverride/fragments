@@ -28,7 +28,7 @@ width_output: 1080 # Should be same as monitor width
 l: 2.5
 r: 2.5
 t: 2.5
-b: 5.5
+b: 3.5
 
 # Dataset parameters
 face_memory: 6 # How many faces before the same is allowed again?
