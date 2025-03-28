@@ -83,15 +83,15 @@ if __name__ == "__main__":
 
 
         # Test if the image is too blurry.
-        # if quantify_blur(simple_cropped_face_tight_margins) > BLUR_THRESHOLD:
-        #     print("Face is blurry!!!")
-        #     sys.exit()
+        if quantify_blur(simple_cropped_face_tight_margins) > BLUR_THRESHOLD:
+            print("Face is blurry!!!")
+            sys.exit()
 
-        # if not is_face_wide_enough(image=frame,
-        #                             bbox=bb,
-        #                             min_width=MIN_WIDTH):
-        #     print("Face is too small!")
-        #     sys.exit()
+        if not is_face_wide_enough(image=frame,
+                                    bbox=bb,
+                                    min_width=MIN_WIDTH):
+            print("Face is too small!")
+            sys.exit()
 
         # Simple crop the image to the bounding box.
         # NOTE: this should add a small margin for face_recognition and face_mesh

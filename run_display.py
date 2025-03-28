@@ -514,7 +514,7 @@ def collect_faces(camera_type : str,
                     collaged_faces = collaged_faces[:face_memory]
 
     except Exception as e:
-        logging.warning("TOP LEVEL ERROR!", e)
+        logging.warning("TOP LEVEL ERROR! %s", exc_info=True)
         return False
 
 
