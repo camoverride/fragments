@@ -25,10 +25,10 @@ height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
-l: 2.5
-r: 2.5
-t: 4.0
-b: 6.0
+l: 1.5
+r: 1.5
+t: 2.0
+b: 2.5
 
 # Dataset parameters
 face_memory: 6 # How many faces before the same is allowed again?
