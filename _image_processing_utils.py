@@ -45,42 +45,44 @@ if config["camera_type"] == "picam":
     picam2.start()
 
 
-def get_face_landmarks(image : np.ndarray) -> List[List[int]]:
+def get_face_landmarks(image: np.ndarray) -> List[List[int]]:
     """
-    Accepts an image and returns the landmarks for a face in the image.
-    The image should contain a face, already cropped with a margin.
-
-    Parameters
-    ----------
-    image : np.ndarray
-        An image containing a face.
+    Returns facial landmarks with guaranteed valid coordinates within image bounds.
     
-    Returns
-    -------
-    List[List[int]]
-    TODO: is it a float or an int?
-        A list of the tuples of all the landmark locations, [(34.1, 16.6), ...]
+    Args:
+        image: BGR image (OpenCV format) with exactly one face
+        
+    Returns:
+        List of [x,y] coordinates, all guaranteed within image dimensions
     """
-    # Process the image to get the landmarks
-    results = face_mesh.process(image)
-
-    # Extract the facial landmarks
-    height, width, _ = image.shape
+    # Convert to RGB for MediaPipe
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Process with face mesh
+    results = face_mesh.process(rgb_image)
+    
+    # Initialize with empty list
     facial_landmarks = []
-    res = results.multi_face_landmarks
-
-    # If there are landmarks, collect their coordinates.
-    if res:
-        for face_landmarks in res:
-            for landmark in face_landmarks.landmark:
-                x = int(landmark.x * width)
-                y = int(landmark.y * height)
-                facial_landmarks.append([x, y])
-
-    # Else return an empty list
-    else:
-        return []
-
+    
+    if results.multi_face_landmarks:
+        height, width = image.shape[:2]
+        
+        # Safely convert each landmark
+        for landmark in results.multi_face_landmarks[0].landmark:
+            # Clamp normalized coordinates to [0,1] range first
+            x_norm = max(0.0, min(1.0, landmark.x))
+            y_norm = max(0.0, min(1.0, landmark.y))
+            
+            # Convert to pixels with rounding and bounds checking
+            x = int(round(x_norm * (width - 1)))
+            y = int(round(y_norm * (height - 1)))
+            
+            # Final safety check (shouldn't be needed but protects against math errors)
+            x = max(0, min(x, width - 1))
+            y = max(0, min(y, height - 1))
+            
+            facial_landmarks.append([x, y])
+    
     return facial_landmarks
 
 
