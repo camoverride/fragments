@@ -1,16 +1,16 @@
-# Fragments 🧩
+# Birth 👶
 
-An automated portrait that collects the faces of visitors, combines them together, and
-dissolves them into fragments [[link](https://smith.cam/fragments.html)]
+Automatically create your children [[link](https://smith.cam/birth.html)]
 
 
 ## Setup
 
-This is intended to be run on a Raspberry Pi 5 with a pi camera.
+This is intended to be run on a Ubuntu machine with a GPU. It must be
+run in conjunction with a model server.
 
-- `git clone git@github.com:camoverride/fragments.git`
-- `cd fragments`
-- `python3 -m venv --system-site-packages .venv` (system-site-packages so we get the `picamera` package.)
+- `git clone git@github.com:camoverride/birth.git`
+- `cd birth`
+- `python3 -m venv .venv`
 - `source .venv/bin/activate`
 
 Install this package for installing dlib:
@@ -25,18 +25,16 @@ Install cmake which is requied by dlib which is in turn required by face_recogni
 Install remaining requirements:
 - `pip install -r requirements.txt`
 
-Install unclutter:
-- `sudo apt-get install unclutter`
-
-Create the databases and clear existing files:
-- `python _database_utils.py`
-
 
 ## Test
 
 - `export DISPLAY=:0`
 - `python run_display.py`
-- If you change the image parameters or want a fresh start: `python _database_utils.py`
+
+
+## Configure
+
+Adjust image margins and dimensions, face recognition tolerance, blur threshold, etc. in `config.yaml`.
 
 
 ## Run in Production
@@ -52,23 +50,6 @@ Start the service using the commands below:
 - `systemctl --user enable display.service`
 - `systemctl --user start display.service`
 
-Start it on boot: `sudo loginctl enable-linger pi`
+Start it on boot: `sudo loginctl enable-linger cam`
 
 Get the logs: `journalctl --user -u display.service`
-
-## TODO
-
-- [X] add config
-- [X] code cleanup
-- [X] integrate picam
-- [X] fix issue with simple_crop getting too-large area
-- [X] install on Rpi
-- [X] test on Rpi
-- [X] integrate swapping between Fragments and Averages
-- [X] currently, collages look bad when using random phone data, check to make sure they look good in the wild too!
-
-- [ ] add randomness in sampling (recency bias)
-- [X] improve logging
-- [X] test threading, locks, etc. Fails if things dont write, uneven list lens for in-mem mode etc
-
-- [ ] explicitly set `swarm`, `fragments` or `both` mode

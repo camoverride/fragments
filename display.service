@@ -1,15 +1,15 @@
 [Unit]
-Description=fragments
+Description=birth
 After=default.target
 
 [Service]
 Type=simple
 Restart=always
-WorkingDirectory=/home/pi/fragments
-ExecStart=/home/pi/fragments/.venv/bin/python /home/pi/fragments/run_display.py
+WorkingDirectory=/home/cam/birth
+ExecStart=/home/cam/birth/.venv/bin/python /home/cam/birth/run_display.py
 StandardOutput=journal
 StandardError=journal
-Environment="PATH=/home/pi/fragments/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PATH=/home/cam/birth/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 [Install]
 WantedBy=default.target
