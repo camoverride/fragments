@@ -1,7 +1,4 @@
-from collections import Counter
-from datetime import datetime
 import threading
-import uuid
 import yaml
 import cv2
 import face_recognition
@@ -11,12 +8,11 @@ import mediapipe as mp
 import time
 import logging
 
+from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
-is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, morph_align_face, \
-    create_composite_image, is_face_looking_forward, crop_align_image_based_on_eyes, get_average_face
-from _database_utils import insert_embedding, read_face_list, \
-query_recent_landmarks, get_recent_embeddings, insert_face_mapping
-
+is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, \
+    morph_align_face, is_face_looking_forward, crop_align_image_based_on_eyes, \
+        get_average_face
 
 
 # Set up basic logging
@@ -37,14 +33,12 @@ face_detection = \
     mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.9)
 
 
-# Globals for tracking images if `save_images_to_disk` = False.
+# Globals for tracking images.
 processed_faces = []
 processed_face_landmarks = []
-recent_embeddings = [] # newest first
+recent_embeddings = []
 
-averaged_faces = []
-collaged_faces = []
-animated_faces = [] # not implemented here
+animated_faces = [] # TODO: not implemented here
 
 # Initialize a global lock
 memory_lock = threading.Lock()
@@ -52,25 +46,19 @@ memory_lock = threading.Lock()
 
 
 def collect_faces(camera_type : str,
-                  embeddings_db : str,
-                  mappings_db : str,
-                  save_images_to_disk : bool,
-                  min_num_faces_in_collage : int,
-                  max_num_faces_in_collage : int,
-                  num_frames_in_collage_animation : int,
                   blur_threshold : float,
                   face_memory : int,
                   tolerance : float,
                   min_width : int,
-                  margin_fraction : float,
+                  margin_fraction : float, # TODO: work on this!
                   height_output : int,
                   width_output : int,
                   l : float,
                   r : float,
                   t : float,
                   b : float,
-                  triangulation_indexes : list,
-                  debug_images : bool) -> bool:
+                  triangulation_indexes : list, # TODO: add this!
+                  debug_images : bool) -> bool: # TODO: remove debug! 
     """
     This function gets faces from the webcam and applies a processing
     pipeline. After this pipeline executes, if a new face has been
@@ -87,41 +75,22 @@ def collect_faces(camera_type : str,
         - Crop and rotate the face.
         - Resize the face.
         - Embed the face and check if the face has already been detected.
-        - Save the processed face and record its path, embedding, and
-            landmarks to a sqlite database.
+        - Save the processed face and record it, its path, and its landmarks
+            in some global variables to be shared with the `dispaly` function.
 
-    After the processing pipeline, a collage is formed. If any of the conditions
-    in this process aren't met (such as not enough faces) the process returns
-    False:
-        - Query the embeddings database for some faces.
+    After the processing pipeline, a display image is created. If any of the
+    conditions in this process aren't met (such as not enough faces) the
+    process returns False:
+        - Get the two most recent faces.
         - Average out the landmarks from these faces.
-        - Align every face to the averaged "target" landmarks.
-        - Collage these images into frames, and save the frames.
-        - Save the processed collage and faces used to generate the
-            collage to a sqlite database.
+        - Align both faces to the averaged "target" landmarks.
+        - Average these faces together to form a single image.
+        - Use the API to created an animated video from the image.
     
     Parameters
     ----------
     camera_type : str
-        Whether we're using the `picam`, `webcam` etc.
-    embeddings_db : str
-        The path to a database of face embeddings with the schema:
-        | ID | face_path | landmarks | embedding |
-    mappings_db : str
-        The path to a database of collages and the faces used to
-        create them with the schema:
-        | ID  | avg_face_path | animated_face_path | face_list |
-        TODO: implement average face TODO: change to `collage_path`
-    save_images_to_disk : bool
-        Decide whether to save images so they persist between system
-        resets, or store everything in memory and start from scratch.
-    min_num_faces_in_collage : int
-        The min number of faces that will be used to create a collage.
-    max_num_faces_in_collage : int
-        The max number of faces that will be used to create a collage.
-    num_frames_in_collage_animation : int
-        The number of frames that will be in the collage animation,
-        ultimately saves as a .npz archive to images/collages.
+        Whether we're using the `picam` or `webcam`.
     blur_threshold : float
         The maximum blurriness allowed in a face image. The face image
         should be cropped tightly to the face. The blurriness is calculated
@@ -129,10 +98,11 @@ def collect_faces(camera_type : str,
         NOTE: this must be manually tested with every camera and location
         setup (because of lighting conditions, etc.)
     face_memory : int
-        When querying the embeddings databases for recent faces, how
-        many faces should be considered? (using the most recent faces)
+        How many faces/embeddings/landmarks should we keep in memory? If
+        too many accumulate, the machine can crash! NOTE: in the default
+        mode, only the two most recent faces are used.
     tolerance : float
-        The face recognition tolerance. 0.6 is standard in the industry.
+        The face recognition tolerance. NOTE: 0.6 is standard in the industry.
         Higher values mean that when comparing two embeddings, the algorithm
         is more likely to decide they are different. Lower tolerance means
         that the algorithm is more likely to say that the embeddings match.
@@ -175,8 +145,8 @@ def collect_faces(camera_type : str,
     None or False
         False if one of the processing conditions wasn't met, such
         as a face not looking forward. Or False after the processing
-        steps if there were insufficient images to form a new collage
-        (or if a collage was already formed with existing images).
+        steps if there were insufficient images to form an animation
+        (or if this animation has already been formed!).
 
         If processing conditions are met, images are written to 
         `images/faces`.
@@ -185,8 +155,7 @@ def collect_faces(camera_type : str,
         are written to `images/collages`.
     """
     # Declare all the globals
-    global processed_faces, processed_face_landmarks, recent_embeddings, \
-           averaged_faces, collaged_faces, animated_faces
+    global processed_faces, processed_face_landmarks, recent_embeddings, animated_faces
 
     # Wrap everything in a giant try/except
     try:
@@ -202,7 +171,7 @@ def collect_faces(camera_type : str,
         # There might be multiple faces in the image.
         for bb in bbs:
 
-            # Check if face is too far from the center. TODO: test this
+            # Check if face is too far from the center.
             # if not is_face_centered(bb):
             #     logging.info("Face is not centered!!!")
             #     return False
@@ -224,7 +193,6 @@ def collect_faces(camera_type : str,
                 return False
 
             # Simple crop the image to the bounding box.
-            # TODO: this will have to be large to accomodate the face mesh crop.
             # NOTE: this might capture multiple faces and introduce bugs.
             simple_cropped_face_with_margin = \
                 simple_crop_face(image=frame,
@@ -299,11 +267,11 @@ def collect_faces(camera_type : str,
                 cv2.destroyAllWindows()
 
             # Resize the image
-            face_cropped_rotated_resized = cv2.resize(face_cropped_rotated, 
-                                                      (width_output, height_output))
+            current_face = cv2.resize(face_cropped_rotated, 
+                                      (width_output, height_output))
             
             if debug_images:
-                cv2.imshow("Face, resized", face_cropped_rotated_resized)
+                cv2.imshow("Face, resized", current_face)
                 cv2.waitKey(3000)
                 cv2.destroyAllWindows()
 
@@ -312,11 +280,11 @@ def collect_faces(camera_type : str,
             # often fails with rotated images (unsure why!)
             simple_cropped_face_with_margin = cv2.cvtColor(simple_cropped_face_with_margin,
                                                            cv2.COLOR_BGR2RGB)
-            new_face_embedding = \
+            current_face_embedding = \
                 face_recognition.face_encodings(simple_cropped_face_with_margin)
 
             # If the face was able to be successfully embedded
-            if not new_face_embedding:
+            if not current_face_embedding:
                 logging.warning("Face could not be embedded!!!")
                 return False
 
@@ -324,21 +292,11 @@ def collect_faces(camera_type : str,
             # TODO: why index with [0] - probably because multiple embeddings might
             # be returned if the image has multiple faces...
             # NOTE: this is a potential source of bugs.
-            new_face_embedding = new_face_embedding[0]
+            current_face_embedding = current_face_embedding[0]
 
-            # Retrieve recent embeddings from the database if the database is enabled.
-            if save_images_to_disk == True:
-                recent_embeddings = get_recent_embeddings(db_path=embeddings_db,
-                                                          num_embeddings=face_memory)
-
-            # Otherwise the embeddings are saved as a global
-            else:
-                with memory_lock:
-                    recent_embeddings = recent_embeddings[:face_memory]
-
-            # Check if the face has been recently recognized (embedded).
+            # Check if the face has been recently embedded (recognized).
             results = face_recognition.compare_faces(recent_embeddings,
-                                                     new_face_embedding,
+                                                     current_face_embedding,
                                                      tolerance=tolerance)
 
             if any(results):
@@ -346,172 +304,88 @@ def collect_faces(camera_type : str,
                 return False
 
             # Get all the face landmarks for later morphing.
-            face_landmarks = get_face_landmarks(face_cropped_rotated_resized)
+            face_landmarks = get_face_landmarks(current_face)
+            if not face_landmarks:
+                logging.info("Could not get landmarks!!!")
+                return False
+
             additional_landmarks = \
-                get_additional_landmarks(image_height=face_cropped_rotated_resized.shape[0],
-                                         image_width=face_cropped_rotated_resized.shape[1])
-            all_landmarks = face_landmarks + additional_landmarks
+                get_additional_landmarks(image_height=current_face.shape[0],
+                                         image_width=current_face.shape[1])
+            current_face_all_landmarks = face_landmarks + additional_landmarks
 
-            # Save the processed face if we have enabled the database.
-            if save_images_to_disk:
-                processed_face_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-                    "_" + str(uuid.uuid4())[:8] + ".jpg"
-                processed_face_filepath = f"images/faces/{processed_face_filename}"
-                cv2.imwrite(processed_face_filepath, face_cropped_rotated_resized)
+            # If no faces have been processed yet, track this face and exit.
+            if len(processed_faces) == 0:
+                logging.info("First face tracked!")
+                processed_faces.insert(0, current_face)
+                processed_face_landmarks.insert(0, current_face_all_landmarks)
+                recent_embeddings.insert(0, current_face_embedding)
 
-                # Insert the image path and embedding into the database.
-                insert_embedding(db_path=embeddings_db,
-                                 face_path=processed_face_filepath,
-                                 landmarks=all_landmarks,
-                                 embedding=new_face_embedding)
-                
-            # Otherwise keep track of images in memory.
-            else:
+                return False
+            
+                # NOTE: if this face is not able to be morphed, it won't be
+                # caught until the next iteration of this loop when it tries
+                # to morph with another face!
+
+            ################### Animation phase! ###################
+            try:
+                # Get the landmarks for the previous face and current one.
+                both_faces_landmarks = [processed_face_landmarks[0], current_face_all_landmarks]
+
+                if len(set(len(lm) for lm in both_faces_landmarks)) != 1:
+                    logging.warning("Landmarks have inconsistent shapes, skipping averaging.")
+                    return False
+    
+                # Average these landmarks together.
+                average_landmarks = np.mean(both_faces_landmarks, 
+                                            axis=0).astype(int).tolist()
+
+                # Morph-align both the faces to the averaged landmarks.
+                morph_aligned_faces = []
+
+                both_faces = [processed_faces[0], current_face]
+
+                for face, landmarks in zip(both_faces, both_faces_landmarks):
+                    morphed_face = \
+                        morph_align_face(source_face=face,
+                                        source_face_landmarks=landmarks,
+                                        target_face_landmarks=average_landmarks,
+                                        triangulation_indexes=None)
+                    
+                    morph_aligned_faces.append(morphed_face)
+
+                # Create an average face image for this dataset.
+                average_face = get_average_face(morph_aligned_faces)
+
+                # Create an animation!
+                animated_frames = \
+                    image_to_video_api(api_url="http://127.0.0.1:5000/animate-image",
+                                       image=average_face)
+
+                # Append everything!
                 with memory_lock:
-                    processed_faces.insert(0, face_cropped_rotated_resized)
-                    processed_face_landmarks.insert(0, all_landmarks)
-                    recent_embeddings.insert(0, new_face_embedding)
+                    logging.info("Adding face to memory!!!")
+
+                    # Add the current face details.
+                    processed_faces.insert(0, current_face)
+                    processed_face_landmarks.insert(0, current_face_all_landmarks)
+                    recent_embeddings.insert(0, current_face_embedding)
+
+                    # Add the new averaged face.
+                    animated_faces.insert(0, animated_frames)
 
                     # Make sure this list doesn't get too long!
                     processed_faces = processed_faces[:face_memory]
                     processed_face_landmarks = processed_face_landmarks[:face_memory]
                     recent_embeddings = recent_embeddings[:face_memory]
+                    animated_faces = animated_faces[:face_memory]
 
-
-
-            ########################################################
-            ################### Animation phase! ###################
-            ########################################################
-
-            # Collect the most recently processed faces from the database.
-            if save_images_to_disk:
-                face_paths, face_landmarks = \
-                    query_recent_landmarks(db_path=embeddings_db,
-                                           n=max_num_faces_in_collage)
-
-                if len(face_paths) < min_num_faces_in_collage:
-                    logging.info("Not enough faces to collage!!!")
-                    return False
-
-                # Read the current face_paths into a Counter where
-                # order doesn't matter but repeats do
-                current_face_counter = Counter(face_paths)
-
-                # Read the face_mapping database's `faces` column into a list of counters.
-                # TODO: alternate based on `save_images_to_disk`
-                face_lists = read_face_list(db_path=mappings_db)
-                face_counters = [Counter(l) for l in face_lists]
-
-                # Go through all the previously analyzed faces.
-                for faces in face_counters:
-
-                    # Check if the faces have already been analyzed.
-                    if current_face_counter == faces:
-                        logging.info("Faces have already been averaged!!!")
-                        return False
-
-                # Get the average landmarks.
-                average_landmarks = np.mean(face_landmarks, 
-                                            axis=0).astype(int).tolist()
-
-                # Morph-align all the faces to the averaged landmarks.
-                morph_aligned_faces = []
-
-                for source_face_path, source_face_landmarks in \
-                    zip(face_paths, face_landmarks):
-                    source_face = cv2.imread(source_face_path)
-                    morphed_face = \
-                        morph_align_face(source_face=source_face,
-                                         source_face_landmarks=source_face_landmarks,
-                                         target_face_landmarks=average_landmarks,
-                                         triangulation_indexes=None)
-                    
-                    morph_aligned_faces.append(morphed_face)
-
-                if morph_aligned_faces and debug_images:
-                    cv2.imshow("Morph-aligned face", morph_aligned_faces[0])
-                    cv2.waitKey(3000)
-                    cv2.destroyAllWindows()
-
-                # Create an average face image for this dataset.
-                average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
-
-                # Create collages from these morphs.
-                collage_frames = []
-
-                for _ in range(num_frames_in_collage_animation):
-                    composite = create_composite_image(image_list=morph_aligned_faces,
-                                                    num_squares_height=90)
-
-                    collage_frames.append(composite)
-
-                if collage_frames and debug_images:
-                    cv2.imshow("MAIN: Collaged face", morph_aligned_faces[0])
-                    cv2.waitKey(3000)
-                    cv2.destroyAllWindows()
-
-                # Save the collage frames
-                collage_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-                    "_" + str(uuid.uuid4())[:8] + ".npz"
-                collage_filepath = f"images/collages/{collage_filename}"
-                np.savez(collage_filepath, *collage_frames)
-
-                # Save the averaged image.
-                averaged_filename = datetime.now().strftime("%Y%m%d_%H%M%S") + \
-                    "_" + str(uuid.uuid4())[:8] + ".jpg"
-                averaged_filepath = f"images/averages/{averaged_filename}"
-                cv2.imwrite(averaged_filepath, average_face)
-
-                # Save to database.
-                insert_face_mapping(db_path=mappings_db,
-                                    avg_face_path=averaged_filepath,
-                                    collage_filepath=collage_filepath,
-                                    face_list=face_paths)
-
-
-            # If `save_images_to_disk` == False
-            else:
-                # Get the average landmarks.
-                if len(set(len(lm) for lm in processed_face_landmarks)) != 1:
-                    logging.warning("Landmarks have inconsistent shapes, skipping averaging.")
-                    return False
-                average_landmarks = np.mean(processed_face_landmarks, 
-                                            axis=0).astype(int).tolist()
-
-                # Morph-align all the faces to the averaged landmarks.
-                morph_aligned_faces = []
-
-                for face, landmarks in zip(processed_faces, processed_face_landmarks):
-                    morphed_face = \
-                        morph_align_face(source_face=face,
-                                         source_face_landmarks=landmarks,
-                                         target_face_landmarks=average_landmarks,
-                                         triangulation_indexes=None)
-                    
-                    morph_aligned_faces.append(morphed_face)
-
-                # Create an average face image for this dataset.
-                # average_face = np.mean(morph_aligned_faces, axis=0).astype(np.uint8)
-                average_face = get_average_face(morph_aligned_faces)
-
-                # Create collages from these morphs.
-                collage_frames = []
-
-                for _ in range(num_frames_in_collage_animation):
-                    composite = create_composite_image(image_list=morph_aligned_faces,
-                                                       num_squares_height=90)
-
-                    collage_frames.append(composite)
-
-                # Append everything!
-                with memory_lock:
-                    logging.info("Adding face to memory!!!")
-                    averaged_faces.insert(0, average_face)
-                    collaged_faces.insert(0, collage_frames)
-
-                    # Make sure the lists don't get too long!
-                    averaged_faces = averaged_faces[:face_memory]
-                    collaged_faces = collaged_faces[:face_memory]
+            except Exception as e:
+                # Clear out the images, as they could not be used!
+                processed_faces = []
+                processed_face_landmarks = []
+                recent_embeddings = []
+                logging.warning("Could not morph and animate the face %s", exc_info=True)
 
     except Exception as e:
         logging.warning("TOP LEVEL ERROR! %s", exc_info=True)
@@ -519,101 +393,45 @@ def collect_faces(camera_type : str,
 
 
 
-def run_animation_loop(animation_dirs : str,
-                       save_images_to_disk : bool) -> None:
+def run_animation_loop() -> None:
     """
-    Looks for the most recent image (.jpg) or archive (.npz)
-    in one of the folders listed in the `animation_dirs`. If
-    this file has changed, load the file(s) to `current_play_files`
-    as np.ndarray images. Otherwise continue playing files from
-    `current_play_files`.
 
-    Parameters
-    ----------
-    animation_dirs : list
-        A list of paths to directories containing either
-        a .jpg or .npz to be displayed.
-
-    save_images_to_disk : bool
-        Whether to read from the database or from memory.
 
     Returns
     -------
     None
         Displays image frames.
     """
-    if save_images_to_disk:
-        # The path to the current file.
-        current_play_file_path = None
+    global animated_faces
 
-        # The file(s) unpacked into np.ndarray images.
-        current_play_files = []
+    # Set to display fullscreen
+    cv2.namedWindow("Animation",
+                    cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Animation",
+                          cv2.WND_PROP_FULLSCREEN,
+                          cv2.WINDOW_FULLSCREEN)
 
-        while True:
-            # Allow for switching between animation types.
-            # Get the current time
-            current_time = datetime.now()
-
-            # Check if the current minute is odd or even
-            if current_time.minute % 2 == 0:
-                animation_dir = animation_dirs[0]
-            else:
-                animation_dir = animation_dirs[-1]
-
-
-            # Get paths to all the files.
-            display_file_paths = [os.path.join(root, file) for root, _, files 
-                                  in os.walk(animation_dir) for file in files 
-                                  if file.endswith(".npz")
-                                  or file.endswith(".jpg")]
-            display_file_paths = sorted(display_file_paths, key=os.path.getmtime)
-
-            if not display_file_paths:
-                logging.info("No files to display!")
-
-            else:
-                # Check if the most recent video has changed.
-                # Note: `None == [] # False`
-                if current_play_file_path != display_file_paths[-1]:
-                    current_play_file_path = display_file_paths[-1]
-
-                    # If we're playing an animation, unpack them.
-                    if current_play_file_path.endswith(".npz"):
-                        with np.load(current_play_file_path) as data:
-                            current_play_files = [data[key] for key in data]
-
-                    # if we're playing a jpg, use it.
-                    elif current_play_file_path.endswith(".jpg"):
-                        # This should only ever contain 1 image.
-                        current_play_files = [cv2.imread(current_play_file_path)]
-
-            # If files have been stored here, play them.
-            if current_play_files:
-                for image in current_play_files:
-                    cv2.imshow("Collage or Average", image)
-                    cv2.waitKey(100)
-
-    else:
-        # Set to display fullscreen
-        cv2.namedWindow("Collage or Average", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty("Collage or Average", cv2.WND_PROP_FULLSCREEN,
-                              cv2.WINDOW_FULLSCREEN)
-
-        while True:
-            try:
-                with memory_lock:
-                    if averaged_faces:  # Only check the list you actually use for display
-                        cv2.imshow("Collage or Average", averaged_faces[0])
+    while True:
+        try:
+            with memory_lock:
+                if animated_faces:
+                    for frame in animated_faces[0]:
+                        cv2.imshow("Animation", frame)
+                        cv2.waitKey(40)
                 
-                # CRITICAL: This keeps OpenCV responsive
-                if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
-                    break
+                else:
+                    logging.info("No faces to display yet!!!")
+            
+            # CRITICAL: This keeps OpenCV responsive
+            if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
+                break
+            
+            # Small sleep to prevent CPU overload (optional)
+            time.sleep(0.01)
+        except Exception as e:
+            logging.warning(e)
                 
-                # Small sleep to prevent CPU overload (optional)
-                time.sleep(0.01)
-            except Exception as e:
-                logging.warning(e)
-                
+
 
 if __name__ == "__main__":
     # Rotate screen
@@ -635,12 +453,6 @@ if __name__ == "__main__":
     def collect_faces_loop():
         while True:
             collect_faces(camera_type=config["camera_type"],
-                          embeddings_db=config["embeddings_db"],
-                          mappings_db=config["mappings_db"],
-                          save_images_to_disk=config["save_images_to_disk"],
-                          min_num_faces_in_collage=config["min_num_faces_in_collage"],
-                          max_num_faces_in_collage=config["max_num_faces_in_collage"],
-                          num_frames_in_collage_animation=config["num_frames_in_collage_animation"],
                           blur_threshold=config["blur_threshold"],
                           face_memory=config["face_memory"],
                           tolerance=config["tolerance"],
@@ -660,5 +472,4 @@ if __name__ == "__main__":
     threading.Thread(target=collect_faces_loop, daemon=True).start()
 
     # This will continue forever.
-    run_animation_loop(animation_dirs=config["animation_dirs"],
-                       save_images_to_disk=config["save_images_to_disk"])
+    run_animation_loop()
