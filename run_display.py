@@ -406,7 +406,7 @@ def run_animation_loop() -> None:
 
     # Set to display fullscreen
     cv2.namedWindow("Animation",
-                    cv2.WND_PROP_FULLSCREEN)
+                    cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("Animation",
                           cv2.WND_PROP_FULLSCREEN,
                           cv2.WINDOW_FULLSCREEN)
