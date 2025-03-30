@@ -459,8 +459,8 @@ if __name__ == "__main__":
     os.system("unclutter -idle 0 &")
 
     # Set screen properties
-    # cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
+    # cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     # 1. Create a named window FIRST (critical step!)
 
     cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
