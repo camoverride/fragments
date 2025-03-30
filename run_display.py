@@ -485,7 +485,7 @@ if __name__ == "__main__":
                           b=config["b"],
                           triangulation_indexes=config["triangulation_indexes"],
                           check_centering=config["check_centering"],
-                          check_forward=config["check_forward"]
+                          check_forward=config["check_forward"],
                           debug_images=config["debug_images"])
 
 
