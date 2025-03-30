@@ -458,6 +458,11 @@ if __name__ == "__main__":
     # Hide the mouse
     os.system("unclutter -idle 0 &")
 
+    # Set to fullscreen
+    # NOTE: Ubuntu's window manager (GNOME/Mutter) actively blocks true fullscreen
+    # via SSH.
+    cv2.namedWindow("Display Image", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
     cv2.waitKey(1000)
