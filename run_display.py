@@ -462,6 +462,7 @@ if __name__ == "__main__":
     cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
+    cv2.waitKey(1000)
 
 
     # Load the YAML file
