@@ -458,13 +458,6 @@ if __name__ == "__main__":
     # Hide the mouse
     os.system("unclutter -idle 0 &")
 
-    # Set screen properties
-    # 2. Allow any user to access the display
-    os.system('xhost + >/dev/null 2>&1')  
-
-    # 3. Create window and set fullscreen BEFORE showing content
-    cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
     cv2.waitKey(1000)
