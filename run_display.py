@@ -449,13 +449,11 @@ if __name__ == "__main__":
     os.environ["DISPLAY"] = ":0"
 
     # Change resolution to max supported
-    os.system(f"wlr-randr --output HDMI-A-1 --mode 1920x1080@60.000000")
+    # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
 
-    # Reset to normal
-    os.system(f"./gnome-randr.py --output HDMI-1 --rotate normal")
-    
-    # Then rotate
-    os.system(f"./gnome-randr.py --output HDMI-1 --rotate right")
+    # Rotate the screens
+    os.system(f"xrandr --output HDMI-0 --rotate right")
+    os.system(f"xrandr --output DP-1 --rotate left")
 
     # Hide the mouse
     os.system("unclutter -idle 0 &")
