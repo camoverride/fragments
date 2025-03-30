@@ -6,8 +6,8 @@ face_memory: 2 # How many faces before the same is allowed again?
 tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters
-blur_threshold: 200 # Definitely check on this - depends on camera (50 - 200)
-min_width: 150
+blur_threshold: 999 # Definitely check on this - depends on camera (50 - 200)
+min_width: 0
 margin_fraction: 0.6 # This might need to be wider. NOTE: source of bugs!
 height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
