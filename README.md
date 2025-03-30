@@ -6,7 +6,7 @@ Automatically create your children [[link](https://smith.cam/birth.html)]
 ## Setup
 
 This is intended to be run on a Ubuntu machine with a GPU. It must be
-run in conjunction with a model server.
+run in conjunction with a model server and be in a Conda environment.
 
 - `git clone git@github.com:camoverride/birth.git`
 - `cd birth`
@@ -20,6 +20,9 @@ Install cmake which is requied by dlib which is in turn required by face_recogni
 - `sudo apt update`
 - `sudo apt install cmake`
 - `sudo apt install build-essential cmake libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev`
+- `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`
+- `ldd $CONDA_PREFIX/lib/python3.12/site-packages/_dlib_pybind11.cpython-312-x86_64-linux-gnu.so | grep stdc++`
+- `echo "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6" >> ~/.bashrc`
 - `pip install dlib -vvv`
 
 Install remaining requirements:

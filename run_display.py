@@ -7,6 +7,7 @@ import os
 import mediapipe as mp
 import time
 import logging
+import sys
 
 from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
@@ -18,6 +19,8 @@ is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_land
 # Set up basic logging
 logging.basicConfig(
     level=logging.INFO,  # Minimum level to log
+    stream=sys.stdout,
+    force=True,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -58,6 +61,8 @@ def collect_faces(camera_type : str,
                   t : float,
                   b : float,
                   triangulation_indexes : list, # TODO: add this!
+                  check_centering : bool,
+                  check_forward : bool,
                   debug_images : bool) -> bool: # TODO: remove debug! 
     """
     This function gets faces from the webcam and applies a processing
@@ -136,6 +141,10 @@ def collect_faces(camera_type : str,
         face image. This is used for morphine (affine transformations).
         NOTE: this should be pre-computed.
         TODO: precompute this.
+    check_centering : bool
+        Check if the face is centered.
+    check_forward : bool
+        Check if the face is looking forward
     debug_images : bool
         If True, images of intermediate processing steps are displayed.
         This should always be False when used in production mode.
@@ -172,9 +181,10 @@ def collect_faces(camera_type : str,
         for bb in bbs:
 
             # Check if face is too far from the center.
-            # if not is_face_centered(bb):
-            #     logging.info("Face is not centered!!!")
-            #     return False
+            if check_centering:
+                if not is_face_centered(bb):
+                    logging.info("Face is not centered!!!")
+                    return False
 
             # Get a simple-cropped face with tight margins for blur detection.
             simple_cropped_face_tight_margins = simple_crop_face(frame,
@@ -223,29 +233,30 @@ def collect_faces(camera_type : str,
 
             # Check if it's looking forward.
             face_height, face_width, _ = simple_cropped_face_with_margin.shape
-            face_forward = is_face_looking_forward(face_landmarks=landmarks,
-                                                   image_height=face_height,
-                                                   image_width=face_width)
+            if check_forward:
+                face_forward = is_face_looking_forward(face_landmarks=landmarks,
+                                                    image_height=face_height,
+                                                    image_width=face_width)
 
-            # If it's not looking forward, return False
-            if not face_forward:
-                logging.debug("Face isn't looking forward")
-                return False
+                # If it's not looking forward, return False
+                if not face_forward:
+                    logging.debug("Face isn't looking forward")
+                    return False
 
-            if debug_images:    
-                # Annotate the frame.
-                face_annotated = np.copy(simple_cropped_face_with_margin)
-                cv2.putText(simple_cropped_face_with_margin,
-                            f"{face_forward}",
-                            (10, 80),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            3,
-                            (0, 255, 0),
-                            2,
-                            cv2.LINE_AA)
-                cv2.imshow("Forward face", face_annotated)
-                cv2.waitKey(3000)
-                cv2.destroyAllWindows()
+                if debug_images:    
+                    # Annotate the frame.
+                    face_annotated = np.copy(simple_cropped_face_with_margin)
+                    cv2.putText(simple_cropped_face_with_margin,
+                                f"{face_forward}",
+                                (10, 80),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                3,
+                                (0, 255, 0),
+                                2,
+                                cv2.LINE_AA)
+                    cv2.imshow("Forward face", face_annotated)
+                    cv2.waitKey(3000)
+                    cv2.destroyAllWindows()
 
             # Process the images with face_mesh to rotate and align the pupils.
             try:
@@ -404,12 +415,12 @@ def run_animation_loop() -> None:
     """
     global animated_faces
 
-    # Set to display fullscreen
-    cv2.namedWindow("Animation",
-                    cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Animation",
-                          cv2.WND_PROP_FULLSCREEN,
-                          cv2.WINDOW_FULLSCREEN)
+    # # Set to display fullscreen
+    # cv2.namedWindow("Animation",
+    #                 cv2.WINDOW_NORMAL)
+    # cv2.setWindowProperty("Animation",
+    #                       cv2.WND_PROP_FULLSCREEN,
+    #                       cv2.WINDOW_FULLSCREEN)
 
     while True:
         try:
@@ -434,17 +445,25 @@ def run_animation_loop() -> None:
 
 
 if __name__ == "__main__":
-    # Rotate screen
+    # Get environment in SH mode
     os.environ["DISPLAY"] = ":0"
-
-    # Rotate the screen
-    os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
 
     # Change resolution to max supported
     os.system(f"wlr-randr --output HDMI-A-1 --mode 1920x1080@60.000000")
 
+    # Reset to normal
+    os.system(f"./gnome-randr.py --output HDMI-1 --rotate normal")
+    
+    # Then rotate
+    os.system(f"./gnome-randr.py --output HDMI-1 --rotate right")
+
     # Hide the mouse
     os.system("unclutter -idle 0 &")
+
+    # Set screen properties
+    cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
 
     # Load the YAML file
     with open("config.yaml", "r") as file:
@@ -465,6 +484,8 @@ if __name__ == "__main__":
                           t=config["t"],
                           b=config["b"],
                           triangulation_indexes=config["triangulation_indexes"],
+                          check_centering=config["check_centering"],
+                          check_forward=config["check_forward"]
                           debug_images=config["debug_images"])
 
 

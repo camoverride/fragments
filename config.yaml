@@ -11,6 +11,8 @@ min_width: 150
 margin_fraction: 0.6 # This might need to be wider. NOTE: source of bugs!
 height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
+check_centering: False # Checks if the face is centered
+check_forward: False # Checks if the face is looking forward
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
 l: 1.5
