@@ -8,6 +8,7 @@ import mediapipe as mp
 import time
 import logging
 import sys
+import pygame
 
 from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
@@ -415,30 +416,37 @@ def run_animation_loop() -> None:
     """
     global animated_faces
 
-    # # Set to display fullscreen
-    # cv2.namedWindow("Animation",
-    #                 cv2.WINDOW_NORMAL)
-    # cv2.setWindowProperty("Animation",
-    #                       cv2.WND_PROP_FULLSCREEN,
-    #                       cv2.WINDOW_FULLSCREEN)
+    # Set up pygame display.
+    pygame.init()
+    info = pygame.display.Info()
+    screen_width, screen_height = info.current_w, info.current_h
+    screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+    clock = pygame.time.Clock()
+    fps = 30
+
 
     while True:
         try:
+            # Ensure a clean exit if needed
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+
             with memory_lock:
                 if animated_faces:
                     for frame in animated_faces[0]:
-                        cv2.imshow("Animation", frame)
-                        cv2.waitKey(40)
+                        # Convert NumPy array to a Pygame surface
+                        image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
+                        # Display image
+                        screen.blit(image_surface, (0, 0))
+                        pygame.display.update()
+                        clock.tick(fps)
                 
                 else:
                     logging.info("No faces to display yet!!!")
-            
-            # CRITICAL: This keeps OpenCV responsive
-            if cv2.waitKey(1000) == 27:  # 30ms delay, ESC to exit
-                break
-            
-            # Small sleep to prevent CPU overload (optional)
-            time.sleep(0.01)
+
         except Exception as e:
             logging.warning(e)
                 
@@ -446,27 +454,17 @@ def run_animation_loop() -> None:
 
 if __name__ == "__main__":
     # Get environment in SH mode
-    os.environ["DISPLAY"] = ":0.0"
+    os.environ["DISPLAY"] = ":0"
 
     # Change resolution to max supported
     # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
 
     # Rotate the screens
     os.system(f"xrandr --output HDMI-0 --rotate right")
-    os.system(f"xrandr --output DP-1 --rotate left")
+    # os.system(f"xrandr --output DP-1 --rotate left")
 
     # Hide the mouse
     os.system("unclutter -idle 0 &")
-
-    # Set to fullscreen
-    # NOTE: Ubuntu's window manager (GNOME/Mutter) actively blocks true fullscreen
-    # via SSH.
-    cv2.namedWindow("Display Image", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-    cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
-    cv2.waitKey(1000)
-
 
     # Load the YAML file
     with open("config.yaml", "r") as file:

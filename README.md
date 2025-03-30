@@ -23,6 +23,7 @@ Install cmake which is requied by dlib which is in turn required by face_recogni
 - `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`
 - `ldd $CONDA_PREFIX/lib/python3.12/site-packages/_dlib_pybind11.cpython-312-x86_64-linux-gnu.so | grep stdc++`
 - `echo "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6" >> ~/.bashrc`
+- `source ~/.bashrc`
 - `pip install dlib -vvv`
 
 Install remaining requirements:

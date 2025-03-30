@@ -33,7 +33,7 @@ with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
 if config["camera_type"] == "picam":
-    from picamera2 import Picamera2
+    from picamera2 import Picamera2 # type: ignore
 
     # Initialize the picamera
     picam2 = Picamera2()
