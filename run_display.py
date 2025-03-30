@@ -460,12 +460,9 @@ if __name__ == "__main__":
 
     # Set screen properties
     # cv2.namedWindow("Animation", cv2.WINDOW_NORMAL)
-    # cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    # 1. Create a named window FIRST (critical step!)
-    cv2.namedWindow("Animation", cv2.WND_PROP_FULLSCREEN)
-
-    # 2. Force fullscreen mode (this bypasses window manager)
     cv2.setWindowProperty("Animation", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # 1. Create a named window FIRST (critical step!)
+
     cv2.imshow("Animation", cv2.imread("mona_lisa_1080_1920.jpg"))
     cv2.waitKey(1000)
 
