@@ -446,6 +446,7 @@ def run_animation_loop() -> None:
                 
                 else:
                     logging.info("No faces to display yet!!!")
+                    time.sleep(3)
 
         except Exception as e:
             logging.warning(e)
