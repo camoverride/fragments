@@ -446,7 +446,7 @@ def run_animation_loop() -> None:
 
 if __name__ == "__main__":
     # Get environment in SH mode
-    os.environ["DISPLAY"] = ":0"
+    os.environ["DISPLAY"] = ":0.0"
 
     # Change resolution to max supported
     # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
