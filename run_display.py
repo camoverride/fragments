@@ -418,6 +418,7 @@ def main_display():
         try:
             with memory_lock:
                 if animated_faces:
+                    logging.info("Displaying main animation!")
                     for frame in animated_faces[0]:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
@@ -444,6 +445,7 @@ def right_display():
         try:
             with memory_lock:
                 if processed_faces:
+                    logging.info("Displaying right face!")
                     frame = cv2.cvtColor(processed_faces[0], cv2.COLOR_BGR2RGB)
                     frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
                     image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
@@ -469,7 +471,7 @@ if __name__ == "__main__":
 
     # Rotate the screens
     os.system(f"xrandr --output HDMI-0 --rotate right")
-    os.system(f"xrandr --output DP-1 --rotate left")
+    os.system(f"xrandr --output DP-1 --rotate right")
 
     # Hide the mouse
     os.system("unclutter -idle 0 &")
