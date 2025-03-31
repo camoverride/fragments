@@ -9,7 +9,7 @@ import time
 import logging
 import sys
 import pygame
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 
 
 from _api_utils import image_to_video_api
@@ -39,12 +39,15 @@ face_detection = \
     mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.9)
 
 
+manager = Manager()
+
 # Globals for tracking images.
 processed_faces = []
 processed_face_landmarks = []
 recent_embeddings = []
 
-animated_faces = [] # TODO: not implemented here
+# animated_faces = [] # TODO: not implemented here
+animated_faces = manager.list()
 
 # Initialize a global lock
 memory_lock = threading.Lock()
