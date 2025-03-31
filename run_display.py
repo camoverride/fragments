@@ -171,7 +171,6 @@ def collect_faces(camera_type : str,
 
     # Wrap everything in a giant try/except
     try:
-        print(animated_faces)
         # Get an image from the webcam along with face bounding boxes.
         frame, bbs = get_faces_from_camera(camera_type=camera_type,
                                            debug=debug_images)
@@ -416,6 +415,7 @@ def main_display():
     fps = 30
 
     while True:
+        print(animated_faces)
         try:
             with memory_lock:
                 if animated_faces:
