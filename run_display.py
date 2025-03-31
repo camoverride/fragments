@@ -417,6 +417,16 @@ def main_display():
     clock = pygame.time.Clock()
     fps = 30
 
+
+    frame = cv2.imread("mona_lisa_1080_1920.jpg")
+    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+    screen.blit(image_surface, (0, 0))
+
+    pygame.display.update()
+
     while True:
         print(animated_faces)
         try:
