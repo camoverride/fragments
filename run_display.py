@@ -588,6 +588,8 @@ if __name__ == "__main__":
     os.system(f"xrandr --output HDMI-0 --rotate right")
     os.system(f"xrandr --output DP-1 --rotate right")
 
+    time.sleep(4)
+
     # Hide the mouse
     os.system("unclutter -idle 0 &")
 
