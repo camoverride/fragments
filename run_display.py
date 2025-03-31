@@ -413,7 +413,7 @@ def collect_faces(camera_type : str,
 def main_display():
     pygame.init()
     monitor_resolution = (1920, 1080)
-    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
+    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
     clock = pygame.time.Clock()
     fps = 30
 
@@ -517,12 +517,61 @@ if __name__ == "__main__":
     # Create thread for collecting faces.
     threading.Thread(target=collect_faces_loop, daemon=True).start()
 
-    # Start the displays.
-    pa = Process(target=main_display)
+    # # Start the displays.
+    # pa = Process(target=main_display)
+    # pa.start()
+    
+    # pb = Process(target=right_display)
+    # pb.start()
+    
+    # pa.join()
+    # pb.join()
+
+
+
+    def a():
+        pygame.init()
+        monitor_resolution = (1920, 1080)
+        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
+        clock = pygame.time.Clock()
+        fps = 30
+
+        frame = cv2.imread("mona_lisa_1080_1920.jpg")
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        while True:
+            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+            screen.blit(image_surface, (0, 0))
+
+            pygame.display.update()
+            clock.tick(fps)
+
+
+    def b():
+        pygame.init()
+        monitor_resolution = (900, 1600)
+        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
+        clock = pygame.time.Clock()
+        fps = 30
+
+        frame = cv2.imread("mona_lisa_1080_1920.jpg")
+        frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        while True:
+            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+            screen.blit(image_surface, (0, 0))
+
+            pygame.display.update()
+            clock.tick(fps)
+
+
+
+    pa = Process(target=a)
     pa.start()
-    
-    pb = Process(target=right_display)
+
+    pb = Process(target=b)
     pb.start()
-    
+
     pa.join()
     pb.join()
