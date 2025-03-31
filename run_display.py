@@ -588,8 +588,6 @@ if __name__ == "__main__":
     os.system(f"xrandr --output HDMI-0 --rotate right")
     os.system(f"xrandr --output DP-1 --rotate right")
 
-    time.sleep(4)
-
     # Hide the mouse
     os.system("unclutter -idle 0 &")
 
@@ -628,10 +626,18 @@ if __name__ == "__main__":
         clock = pygame.time.Clock()
         fps = 30
 
-        frame = cv2.imread(image_path)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        print(processed_faces)
+        if not processed_faces:
+            frame = cv2.imread(image_path)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        else:
+            frame = processed_faces[0]
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
         if resize:
             frame = cv2.resize(frame, resize, interpolation=cv2.INTER_LINEAR)
+
 
         while True:
             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
