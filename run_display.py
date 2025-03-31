@@ -9,6 +9,8 @@ import time
 import logging
 import sys
 import pygame
+from multiprocessing import Process
+
 
 from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
@@ -405,124 +407,54 @@ def collect_faces(camera_type : str,
         return False
 
 
-
-# def run_animation_loop() -> None:
-#     """
-
-
-#     Returns
-#     -------
-#     None
-#         Displays image frames.
-#     """
-#     global animated_faces
-
-#     # Set up pygame display.
-#     pygame.init()
-#     info = pygame.display.Info()
-#     # screen_width, screen_height = info.current_w, info.current_h
-#     monitor1_resolution = (1920, 1080)  # HDMI monitor
-#     monitor2_resolution = (1600, 900)  # DisplayPort monitor
-#     # screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
-#     screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=1)  # First monitor (HDMI)
-#     screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=0)  # Second monitor (DP)    
-#     clock = pygame.time.Clock()
-#     fps = 30
-
-
-#     while True:
-#         try:
-#             # Ensure a clean exit if needed
-#             for event in pygame.event.get():
-#                 if event.type == pygame.QUIT:
-#                     pygame.quit()
-#                     exit()
-
-#             with memory_lock:
-#                 if animated_faces:
-#                     for frame in animated_faces[0]:
-#                         # Convert NumPy array to a Pygame surface
-#                         image_surface_1 = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-
-#                         # Display image
-#                         screen1.blit(image_surface_1, (0, 0))
-#                         pygame.display.update()
-
-
-#                         mona = cv2.imread("mona_lisa_1080_1920.jpg")
-#                         image_surface_2 = pygame.surfarray.make_surface(mona.swapaxes(0, 1))
-#                         # Display something on the second monitor
-#                         screen2.blit(image_surface_2, (0, 0))
-#                         pygame.display.update()
-#                         clock.tick(fps)
-                
-#                 else:
-#                     logging.info("No faces to display yet!!!")
-#                     time.sleep(3)
-
-#         except Exception as e:
-#             logging.warning(e)
-                
-
-
-def run_animation_loop() -> None:
-    """
-    Display different content on two monitors by setting environment variables for Pygame window location.
-    """
-    # Initialize Pygame
+def main_display():
     pygame.init()
-
-    # Get the number of displays Pygame detects (though it's likely 0)
-    num_displays = pygame.display.get_num_displays()
-    print(f"Number of displays detected: {num_displays}")
-
-    # Set resolutions for the two monitors (based on xrandr output)
-    monitor1_resolution = (1920, 1080)  # HDMI monitor
-    monitor2_resolution = (1600, 900)   # DisplayPort monitor
-
-    # Workaround: Use xrandr or environment variables to move windows to each monitor
-    os.environ['SDL_VIDEO_X11_DISPLAY'] = ':0'  # Make sure it's running on the primary display first
-
-    # Set up the first screen (HDMI-0) - this should show on the primary monitor
-    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.NOFRAME, display=0)  # HDMI monitor (first)
-    pygame.display.set_caption("Monitor 1 - HDMI-0")
-
-    # Move the window to the second monitor using environment variables and display index
-    os.environ['SDL_VIDEO_X11_DISPLAY'] = ':1'  # Direct the second window to the second monitor
-    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.NOFRAME, display=1)  # DisplayPort monitor (second)
-    pygame.display.set_caption("Monitor 2 - DP-1")
-
+    monitor_resolution = (1920, 1080)
+    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
     clock = pygame.time.Clock()
     fps = 30
 
-    # Load images for both monitors
     while True:
         try:
-            # Handle exit conditions
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    exit()
-
             with memory_lock:
                 if animated_faces:
                     for frame in animated_faces[0]:
-                        # Load and display image on the first monitor (HDMI-0)
-                        image_surface_1 = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-                        screen1.blit(image_surface_1, (0, 0))
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                        screen.blit(image_surface, (0, 0))
 
-                        # Load and display a different image on the second monitor (DP-1)
-                        image2 = cv2.imread("mona_lisa_1080_1920.jpg")  # Load image for the second monitor
-                        image_surface_2 = pygame.surfarray.make_surface(image2.swapaxes(0, 1))
-                        screen2.blit(image_surface_2, (0, 0))
-                      
-                        # Update both screens
-                        pygame.display.update()  
-                        clock.tick(fps)  # Control FPS
+                        pygame.display.update()
+                        clock.tick(fps)
+                else:
+                    logging.info("No faces to display yet.")
 
         except Exception as e:
-            logging.warning(f"Error: {e}")
-            time.sleep(1)
+            logging.warning(e)
+
+
+def right_display():
+    pygame.init()
+    monitor_resolution = (900, 1600)
+    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
+    clock = pygame.time.Clock()
+    fps = 30
+
+    while True:
+        try:
+            with memory_lock:
+                if processed_faces:
+                    frame = cv2.cvtColor(processed_faces[0], cv2.COLOR_BGR2RGB)
+                    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+                    image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                    screen.blit(image_surface, (0, 0))
+
+                    pygame.display.update()
+                    clock.tick(fps)
+                else:
+                    logging.info("No faces to display yet.")
+
+        except Exception as e:
+            logging.warning(e)
 
 
 
@@ -535,7 +467,7 @@ if __name__ == "__main__":
 
     # Rotate the screens
     os.system(f"xrandr --output HDMI-0 --rotate right")
-    # os.system(f"xrandr --output DP-1 --rotate left")
+    os.system(f"xrandr --output DP-1 --rotate left")
 
     # Hide the mouse
     os.system("unclutter -idle 0 &")
@@ -567,5 +499,12 @@ if __name__ == "__main__":
     # Create thread for collecting faces.
     threading.Thread(target=collect_faces_loop, daemon=True).start()
 
-    # This will continue forever.
-    run_animation_loop()
+    # Start the displays.
+    pa = Process(target=main_display)
+    pa.start()
+    
+    pb = Process(target=right_display)
+    pb.start()
+    
+    pa.join()
+    pb.join()
