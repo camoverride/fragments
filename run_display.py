@@ -406,33 +406,99 @@ def collect_faces(camera_type : str,
 
 
 
+# def run_animation_loop() -> None:
+#     """
+
+
+#     Returns
+#     -------
+#     None
+#         Displays image frames.
+#     """
+#     global animated_faces
+
+#     # Set up pygame display.
+#     pygame.init()
+#     info = pygame.display.Info()
+#     # screen_width, screen_height = info.current_w, info.current_h
+#     monitor1_resolution = (1920, 1080)  # HDMI monitor
+#     monitor2_resolution = (1600, 900)  # DisplayPort monitor
+#     # screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+#     screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=1)  # First monitor (HDMI)
+#     screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=0)  # Second monitor (DP)    
+#     clock = pygame.time.Clock()
+#     fps = 30
+
+
+#     while True:
+#         try:
+#             # Ensure a clean exit if needed
+#             for event in pygame.event.get():
+#                 if event.type == pygame.QUIT:
+#                     pygame.quit()
+#                     exit()
+
+#             with memory_lock:
+#                 if animated_faces:
+#                     for frame in animated_faces[0]:
+#                         # Convert NumPy array to a Pygame surface
+#                         image_surface_1 = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
+#                         # Display image
+#                         screen1.blit(image_surface_1, (0, 0))
+#                         pygame.display.update()
+
+
+#                         mona = cv2.imread("mona_lisa_1080_1920.jpg")
+#                         image_surface_2 = pygame.surfarray.make_surface(mona.swapaxes(0, 1))
+#                         # Display something on the second monitor
+#                         screen2.blit(image_surface_2, (0, 0))
+#                         pygame.display.update()
+#                         clock.tick(fps)
+                
+#                 else:
+#                     logging.info("No faces to display yet!!!")
+#                     time.sleep(3)
+
+#         except Exception as e:
+#             logging.warning(e)
+                
+
+
 def run_animation_loop() -> None:
     """
-
-
-    Returns
-    -------
-    None
-        Displays image frames.
+    Display different content on two monitors by setting environment variables for Pygame window location.
     """
-    global animated_faces
-
-    # Set up pygame display.
+    # Initialize Pygame
     pygame.init()
-    info = pygame.display.Info()
-    # screen_width, screen_height = info.current_w, info.current_h
+
+    # Get the number of displays Pygame detects (though it's likely 0)
+    num_displays = pygame.display.get_num_displays()
+    print(f"Number of displays detected: {num_displays}")
+
+    # Set resolutions for the two monitors (based on xrandr output)
     monitor1_resolution = (1920, 1080)  # HDMI monitor
-    monitor2_resolution = (1920, 1080)  # DisplayPort monitor
-    # screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
-    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=1)  # First monitor (HDMI)
-    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=0)  # Second monitor (DP)    
+    monitor2_resolution = (1600, 900)   # DisplayPort monitor
+
+    # Workaround: Use xrandr or environment variables to move windows to each monitor
+    os.environ['SDL_VIDEO_X11_DISPLAY'] = ':0'  # Make sure it's running on the primary display first
+
+    # Set up the first screen (HDMI-0) - this should show on the primary monitor
+    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.NOFRAME, display=0)  # HDMI monitor (first)
+    pygame.display.set_caption("Monitor 1 - HDMI-0")
+
+    # Move the window to the second monitor using environment variables and display index
+    os.environ['SDL_VIDEO_X11_DISPLAY'] = ':1'  # Direct the second window to the second monitor
+    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.NOFRAME, display=1)  # DisplayPort monitor (second)
+    pygame.display.set_caption("Monitor 2 - DP-1")
+
     clock = pygame.time.Clock()
     fps = 30
 
-
+    # Load images for both monitors
     while True:
         try:
-            # Ensure a clean exit if needed
+            # Handle exit conditions
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -441,28 +507,23 @@ def run_animation_loop() -> None:
             with memory_lock:
                 if animated_faces:
                     for frame in animated_faces[0]:
-                        # Convert NumPy array to a Pygame surface
+                        # Load and display image on the first monitor (HDMI-0)
                         image_surface_1 = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-
-                        # Display image
                         screen1.blit(image_surface_1, (0, 0))
-                        pygame.display.update()
 
-
-                        mona = cv2.imread("mona_lisa_1080_1920.jpg")
-                        image_surface_2 = pygame.surfarray.make_surface(mona.swapaxes(0, 1))
-                        # Display something on the second monitor
+                        # Load and display a different image on the second monitor (DP-1)
+                        image2 = cv2.imread("mona_lisa_1080_1920.jpg")  # Load image for the second monitor
+                        image_surface_2 = pygame.surfarray.make_surface(image2.swapaxes(0, 1))
                         screen2.blit(image_surface_2, (0, 0))
-                        pygame.display.update()
-                        clock.tick(fps)
-                
-                else:
-                    logging.info("No faces to display yet!!!")
-                    time.sleep(3)
+                      
+                        # Update both screens
+                        pygame.display.update()  
+                        clock.tick(fps)  # Control FPS
 
         except Exception as e:
-            logging.warning(e)
-                
+            logging.warning(f"Error: {e}")
+            time.sleep(1)
+
 
 
 if __name__ == "__main__":
