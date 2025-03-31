@@ -450,7 +450,6 @@ def run_animation_loop() -> None:
 
                         mona = cv2.imread("mona_lisa_1080_1920.jpg")
                         image_surface_2 = pygame.surfarray.make_surface(mona.swapaxes(0, 1))
-                        image_surface_2.fill((255, 0, 0))  # Just an example: red background for monitor 2
                         # Display something on the second monitor
                         screen2.blit(image_surface_2, (0, 0))
                         pygame.display.update()
