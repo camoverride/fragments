@@ -597,22 +597,25 @@ if __name__ == "__main__":
 
     def collect_faces_loop():
         while True:
-            collect_faces(camera_type=config["camera_type"],
-                          blur_threshold=config["blur_threshold"],
-                          face_memory=config["face_memory"],
-                          tolerance=config["tolerance"],
-                          min_width=config["min_width"],
-                          margin_fraction=config["margin_fraction"],
-                          height_output=config["height_output"],
-                          width_output=config["width_output"],
-                          l=config["l"],
-                          r=config["r"],
-                          t=config["t"],
-                          b=config["b"],
-                          triangulation_indexes=config["triangulation_indexes"],
-                          check_centering=config["check_centering"],
-                          check_forward=config["check_forward"],
-                          debug_images=config["debug_images"])
+            try:
+                collect_faces(camera_type=config["camera_type"],
+                            blur_threshold=config["blur_threshold"],
+                            face_memory=config["face_memory"],
+                            tolerance=config["tolerance"],
+                            min_width=config["min_width"],
+                            margin_fraction=config["margin_fraction"],
+                            height_output=config["height_output"],
+                            width_output=config["width_output"],
+                            l=config["l"],
+                            r=config["r"],
+                            t=config["t"],
+                            b=config["b"],
+                            triangulation_indexes=config["triangulation_indexes"],
+                            check_centering=config["check_centering"],
+                            check_forward=config["check_forward"],
+                            debug_images=config["debug_images"])
+            except Exception as e:
+                print(e)
 
     # Create thread for collecting faces.
     threading.Thread(target=collect_faces_loop, daemon=True).start()
@@ -626,7 +629,6 @@ if __name__ == "__main__":
         clock = pygame.time.Clock()
         fps = 30
 
-        print(processed_faces)
         if not processed_faces:
             frame = cv2.imread(image_path)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
