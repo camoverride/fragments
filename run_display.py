@@ -423,8 +423,8 @@ def run_animation_loop() -> None:
     monitor1_resolution = (1920, 1080)  # HDMI monitor
     monitor2_resolution = (1920, 1080)  # DisplayPort monitor
     # screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
-    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=0)  # First monitor (HDMI)
-    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=1)  # Second monitor (DP)    
+    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=1)  # First monitor (HDMI)
+    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=0)  # Second monitor (DP)    
     clock = pygame.time.Clock()
     fps = 30
 
