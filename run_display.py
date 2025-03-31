@@ -42,7 +42,7 @@ face_detection = \
 manager = Manager()
 
 # Globals for tracking images.
-processed_faces = []
+processed_faces = manager.list()
 processed_face_landmarks = []
 recent_embeddings = []
 
@@ -554,9 +554,15 @@ if __name__ == "__main__":
         clock = pygame.time.Clock()
         fps = 30
 
-        frame = cv2.imread("mona_lisa_1080_1920.jpg")
-        frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if processed_faces:
+            frame = processed_faces[0]
+            frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        else:
+            frame = cv2.imread("mona_lisa_1080_1920.jpg")
+            frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         while True:
             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
