@@ -629,19 +629,20 @@ if __name__ == "__main__":
         clock = pygame.time.Clock()
         fps = 30
 
-        if not processed_faces:
-            frame = cv2.imread(image_path)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        else:
-            frame = processed_faces[0]
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        if resize:
-            frame = cv2.resize(frame, resize, interpolation=cv2.INTER_LINEAR)
-
 
         while True:
+            print(processed_faces)
+            if not processed_faces:
+                frame = cv2.imread(image_path)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            else:
+                frame = processed_faces[0]
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            if resize:
+                frame = cv2.resize(frame, resize, interpolation=cv2.INTER_LINEAR)
+
             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
             screen.blit(image_surface, (0, 0))
             pygame.display.update()
