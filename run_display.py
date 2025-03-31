@@ -419,8 +419,12 @@ def run_animation_loop() -> None:
     # Set up pygame display.
     pygame.init()
     info = pygame.display.Info()
-    screen_width, screen_height = info.current_w, info.current_h
-    screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+    # screen_width, screen_height = info.current_w, info.current_h
+    monitor1_resolution = (1920, 1080)  # HDMI monitor
+    monitor2_resolution = (1920, 1080)  # DisplayPort monitor
+    # screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+    screen1 = pygame.display.set_mode(monitor1_resolution, pygame.FULLSCREEN, display=0)  # First monitor (HDMI)
+    screen2 = pygame.display.set_mode(monitor2_resolution, pygame.FULLSCREEN, display=1)  # Second monitor (DP)    
     clock = pygame.time.Clock()
     fps = 30
 
@@ -437,10 +441,18 @@ def run_animation_loop() -> None:
                 if animated_faces:
                     for frame in animated_faces[0]:
                         # Convert NumPy array to a Pygame surface
-                        image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                        image_surface_1 = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
 
                         # Display image
-                        screen.blit(image_surface, (0, 0))
+                        screen1.blit(image_surface_1, (0, 0))
+                        pygame.display.update()
+
+
+                        mona = cv2.imread("mona_lisa_1080_1920.jpg")
+                        image_surface_2 = pygame.surfarray.make_surface(mona.swapaxes(0, 1))
+                        image_surface_2.fill((255, 0, 0))  # Just an example: red background for monitor 2
+                        # Display something on the second monitor
+                        screen2.blit(image_surface_2, (0, 0))
                         pygame.display.update()
                         clock.tick(fps)
                 
