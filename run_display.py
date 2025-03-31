@@ -566,12 +566,12 @@ if __name__ == "__main__":
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             while True:
-                print(processed_faces)
+                # print(processed_faces)
 
-                if processed_faces:
-                    frame = processed_faces[0]
-                    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # if processed_faces:
+                #     frame = processed_faces[0]
+                #     frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+                #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
                 image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
                 screen.blit(image_surface, (0, 0))
