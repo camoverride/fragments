@@ -554,6 +554,8 @@ if __name__ == "__main__":
         clock = pygame.time.Clock()
         fps = 30
 
+        print(processed_faces)
+
         if processed_faces:
             frame = processed_faces[0]
             frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
