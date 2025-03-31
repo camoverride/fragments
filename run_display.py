@@ -370,6 +370,7 @@ def collect_faces(camera_type : str,
                 average_face = get_average_face(morph_aligned_faces)
 
                 # Create an animation!
+                logging.info("Creating animation!")
                 animated_frames = \
                     image_to_video_api(api_url="http://127.0.0.1:5000/animate-image",
                                        image=average_face)
