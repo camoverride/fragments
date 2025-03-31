@@ -530,57 +530,72 @@ if __name__ == "__main__":
 
 
     def a():
-        pygame.init()
-        monitor_resolution = (1920, 1080)
-        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
-        clock = pygame.time.Clock()
-        fps = 30
+        try:
+            pygame.init()
+            monitor_resolution = (1920, 1080)
+            screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
+            clock = pygame.time.Clock()
+            fps = 30
 
-        frame = cv2.imread("mona_lisa_1080_1920.jpg")
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.imread("mona_lisa_1080_1920.jpg")
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        while True:
-            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(image_surface, (0, 0))
+            while True:
+                image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                screen.blit(image_surface, (0, 0))
 
-            pygame.display.update()
-            clock.tick(fps)
+                pygame.display.update()
+                clock.tick(fps)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pygame.quit()
+            sys.exit()
 
 
     def b():
-        pygame.init()
-        monitor_resolution = (900, 1600)
-        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-        clock = pygame.time.Clock()
-        fps = 30
-        # else:
-        frame = cv2.imread("mona_lisa_1080_1920.jpg")
-        frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        try:
+            pygame.init()
+            monitor_resolution = (900, 1600)
+            screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
+            clock = pygame.time.Clock()
+            fps = 30
+            # else:
+            frame = cv2.imread("mona_lisa_1080_1920.jpg")
+            frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        while True:
+            while True:
+                print(processed_faces)
+
+                if processed_faces:
+                    frame = processed_faces[0]
+                    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+                screen.blit(image_surface, (0, 0))
+
+                pygame.display.update()
+                clock.tick(fps)
+    
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pygame.quit()
+            sys.exit()
 
 
-            print(processed_faces)
 
-            if processed_faces:
-                frame = processed_faces[0]
-                frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    try:
+        pa = Process(target=a)
+        pa.start()
 
-            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(image_surface, (0, 0))
+        pb = Process(target=b)
+        pb.start()
 
-            pygame.display.update()
-            clock.tick(fps)
-
-
-
-    pa = Process(target=a)
-    pa.start()
-
-    pb = Process(target=b)
-    pb.start()
-
-    pa.join()
-    pb.join()
+    except KeyboardInterrupt:
+        pa.terminate()
+        pb.terminate()
+        pa.join()
+        pb.join()
