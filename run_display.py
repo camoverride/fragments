@@ -427,7 +427,7 @@ def main_display():
                         clock.tick(fps)
                 else:
                     logging.info("No faces to display yet.")
-                    time.sleep(5)
+                    time.sleep(1)
 
         except Exception as e:
             logging.warning(e)
@@ -453,6 +453,7 @@ def right_display():
                     clock.tick(fps)
                 else:
                     logging.info("No faces to display yet.")
+                    time.sleep(1)
 
         except Exception as e:
             logging.warning(e)
