@@ -476,6 +476,107 @@ def right_display():
 
 
 
+# if __name__ == "__main__":
+#     # Get environment in SH mode
+#     os.environ["DISPLAY"] = ":0"
+
+#     # Change resolution to max supported
+#     # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
+
+#     # Rotate the screens
+#     os.system(f"xrandr --output HDMI-0 --rotate right")
+#     os.system(f"xrandr --output DP-1 --rotate right")
+
+#     # Hide the mouse
+#     os.system("unclutter -idle 0 &")
+
+#     # Load the YAML file
+#     with open("config.yaml", "r") as file:
+#         config = yaml.safe_load(file)
+
+#     def collect_faces_loop():
+#         while True:
+#             collect_faces(camera_type=config["camera_type"],
+#                           blur_threshold=config["blur_threshold"],
+#                           face_memory=config["face_memory"],
+#                           tolerance=config["tolerance"],
+#                           min_width=config["min_width"],
+#                           margin_fraction=config["margin_fraction"],
+#                           height_output=config["height_output"],
+#                           width_output=config["width_output"],
+#                           l=config["l"],
+#                           r=config["r"],
+#                           t=config["t"],
+#                           b=config["b"],
+#                           triangulation_indexes=config["triangulation_indexes"],
+#                           check_centering=config["check_centering"],
+#                           check_forward=config["check_forward"],
+#                           debug_images=config["debug_images"])
+
+
+#     # Create thread for collecting faces.
+#     threading.Thread(target=collect_faces_loop, daemon=True).start()
+
+
+
+
+
+#     def a():
+#         pygame.init()
+#         monitor_resolution = (1920, 1080)
+#         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
+#         clock = pygame.time.Clock()
+#         fps = 30
+
+#         frame = cv2.imread("mona_lisa_1080_1920.jpg")
+#         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+#         while True:
+#             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+#             screen.blit(image_surface, (0, 0))
+
+#             pygame.display.update()
+#             clock.tick(fps)
+
+
+#     def b():
+#         pygame.init()
+#         monitor_resolution = (900, 1600)
+#         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
+#         clock = pygame.time.Clock()
+#         fps = 30
+
+#         frame = cv2.imread("mona_lisa_1080_1920.jpg")
+#         frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
+#         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+#         while True:
+#             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+#             screen.blit(image_surface, (0, 0))
+
+#             pygame.display.update()
+#             clock.tick(fps)
+
+
+
+#     pa = Process(target=a)
+#     pa.start()
+
+#     pb = Process(target=b)
+#     pb.start()
+
+#     pa.join()
+#     pb.join()
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     # Get environment in SH mode
     os.environ["DISPLAY"] = ":0"
@@ -513,60 +614,53 @@ if __name__ == "__main__":
                           check_forward=config["check_forward"],
                           debug_images=config["debug_images"])
 
-
     # Create thread for collecting faces.
     threading.Thread(target=collect_faces_loop, daemon=True).start()
 
-
-
-
-
-    def a():
+    # Start the display processes
+    display_processes = []
+    
+    def run_display(display_index, resolution, image_path, resize=None):
         pygame.init()
-        monitor_resolution = (1920, 1080)
-        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
+        screen = pygame.display.set_mode(resolution, pygame.FULLSCREEN, display=display_index)
         clock = pygame.time.Clock()
         fps = 30
 
-        frame = cv2.imread("mona_lisa_1080_1920.jpg")
+        frame = cv2.imread(image_path)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if resize:
+            frame = cv2.resize(frame, resize, interpolation=cv2.INTER_LINEAR)
 
         while True:
             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
             screen.blit(image_surface, (0, 0))
-
             pygame.display.update()
             clock.tick(fps)
 
+    # Main display (HDMI-0)
+    p1 = Process(target=run_display, 
+                args=(0, (1920, 1080), "mona_lisa_1080_1920.jpg"))
+    p1.start()
+    display_processes.append(p1)
 
-    def b():
-        pygame.init()
-        monitor_resolution = (900, 1600)
-        screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-        clock = pygame.time.Clock()
-        fps = 30
+    # Right display (DP-1)
+    p2 = Process(target=run_display, 
+                args=(1, (900, 1600), "mona_lisa_1080_1920.jpg", (900, 1600)))
+    p2.start()
+    display_processes.append(p2)
 
-        frame = cv2.imread("mona_lisa_1080_1920.jpg")
-        frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        while True:
-            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(image_surface, (0, 0))
-
-            pygame.display.update()
-            clock.tick(fps)
+    # Wait for processes to complete
+    for p in display_processes:
+        p.join()
 
 
 
-    pa = Process(target=a)
-    pa.start()
 
-    pb = Process(target=b)
-    pb.start()
 
-    pa.join()
-    pb.join()
+
+
+
+
 
 
 
