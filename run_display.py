@@ -631,7 +631,6 @@ if __name__ == "__main__":
 
 
         while True:
-            print(processed_faces)
             if not processed_faces:
                 frame = cv2.imread(image_path)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
