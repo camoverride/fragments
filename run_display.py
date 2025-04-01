@@ -1,27 +1,25 @@
+import copy
+import logging
+import os
+import sys
 import threading
 import yaml
+
 import cv2
 import face_recognition
-import numpy as np
-import os
 import mediapipe as mp
-import time
-import logging
-import sys
-import pygame
-from multiprocessing import Process, Manager
+import numpy as np
 
-
-from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, \
     morph_align_face, is_face_looking_forward, crop_align_image_based_on_eyes, \
         get_average_face
 
 
+
 # Set up basic logging
 logging.basicConfig(
-    level=logging.INFO,  # Minimum level to log
+    level=logging.INFO,
     stream=sys.stdout,
     force=True,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -38,20 +36,13 @@ face_mesh = mp.solutions.face_mesh.FaceMesh(
 face_detection = \
     mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.9)
 
-
-manager = Manager()
-
 # Globals for tracking images.
-processed_faces = manager.list()
+processed_faces = []
 processed_face_landmarks = []
 recent_embeddings = []
 
-# animated_faces = [] # TODO: not implemented here
-animated_faces = manager.list()
-
 # Initialize a global lock
 memory_lock = threading.Lock()
-
 
 
 def collect_faces(camera_type : str,
@@ -170,7 +161,7 @@ def collect_faces(camera_type : str,
         are written to `images/collages`.
     """
     # Declare all the globals
-    global processed_faces, processed_face_landmarks, recent_embeddings, animated_faces
+    global processed_faces, processed_face_landmarks, recent_embeddings
 
     # Wrap everything in a giant try/except
     try:
@@ -189,7 +180,7 @@ def collect_faces(camera_type : str,
             # Check if face is too far from the center.
             if check_centering:
                 if not is_face_centered(bb):
-                    logging.info("Face is not centered!!!")
+                    logging.debug("Face is not centered!!!")
                     return False
 
             # Get a simple-cropped face with tight margins for blur detection.
@@ -331,38 +322,25 @@ def collect_faces(camera_type : str,
                                          image_width=current_face.shape[1])
             current_face_all_landmarks = face_landmarks + additional_landmarks
 
-            # If no faces have been processed yet, track this face and exit.
-            if len(processed_faces) == 0:
-                logging.info("First face tracked!")
-                processed_faces.insert(0, current_face)
-                processed_face_landmarks.insert(0, current_face_all_landmarks)
-                recent_embeddings.insert(0, current_face_embedding)
+            # If faces have aready been analyzed
+            if processed_faces and processed_face_landmarks:
+                # Get a copy of the global landmarks and current landmark.
+                _all_landmarks = copy.deepcopy(processed_face_landmarks)
+                _all_landmarks.extend([current_face_all_landmarks])
 
-                return False
-            
-                # NOTE: if this face is not able to be morphed, it won't be
-                # caught until the next iteration of this loop when it tries
-                # to morph with another face!
+                # Get a copy of the global faces and current face.
+                _processed_faces = copy.deepcopy(processed_faces)
+                _processed_faces.extend([current_face])
 
-            ################### Animation phase! ###################
-            try:
-                # Get the landmarks for the previous face and current one.
-                both_faces_landmarks = [processed_face_landmarks[0], current_face_all_landmarks]
-
-                if len(set(len(lm) for lm in both_faces_landmarks)) != 1:
-                    logging.warning("Landmarks have inconsistent shapes, skipping averaging.")
-                    return False
-    
-                # Average these landmarks together.
-                average_landmarks = np.mean(both_faces_landmarks, 
+                print(_all_landmarks)
+                # Average the landmarks together.
+                average_landmarks = np.mean(_all_landmarks, 
                                             axis=0).astype(int).tolist()
 
-                # Morph-align both the faces to the averaged landmarks.
+                # Morph-align the faces to the averaged landmarks.
                 morph_aligned_faces = []
 
-                both_faces = [processed_faces[0], current_face]
-
-                for face, landmarks in zip(both_faces, both_faces_landmarks):
+                for face, landmarks in zip(_processed_faces, _all_landmarks):
                     morphed_face = \
                         morph_align_face(source_face=face,
                                         source_face_landmarks=landmarks,
@@ -374,385 +352,97 @@ def collect_faces(camera_type : str,
                 # Create an average face image for this dataset.
                 average_face = get_average_face(morph_aligned_faces)
 
-                # Create an animation!
-                logging.info("Creating animation!")
-                animated_frames = \
-                    image_to_video_api(api_url="http://127.0.0.1:5000/animate-image",
-                                       image=average_face)
+                # Finally, Display it!
+                cv2.imshow("Display", average_face)
+                cv2.waitKey(30)
 
-                # Append everything!
-                with memory_lock:
-                    logging.info("Adding face to memory!!!")
+            # This is the first run
+            else:
+                cv2.imshow("Display", current_face)
+                cv2.waitKey(30)
 
-                    # Add the current face details.
-                    processed_faces.insert(0, current_face)
-                    processed_face_landmarks.insert(0, current_face_all_landmarks)
-                    recent_embeddings.insert(0, current_face_embedding)
+            # Track everything!
+            with memory_lock:
+                logging.info("Adding face to memory!!!")
 
-                    # Add the new averaged face.
-                    animated_faces.insert(0, animated_frames)
+                # Add the current face details.
+                processed_faces.insert(0, current_face)
+                processed_face_landmarks.insert(0, current_face_all_landmarks)
+                recent_embeddings.insert(0, current_face_embedding)
 
-                    # Make sure this list doesn't get too long!
-                    processed_faces = processed_faces[:face_memory]
-                    processed_face_landmarks = processed_face_landmarks[:face_memory]
-                    recent_embeddings = recent_embeddings[:face_memory]
-                    animated_faces = animated_faces[:face_memory]
+                # Make sure this list doesn't get too long!
+                processed_faces = processed_faces[:face_memory]
+                processed_face_landmarks = processed_face_landmarks[:face_memory]
+                recent_embeddings = recent_embeddings[:face_memory]
 
-            except Exception as e:
-                # Clear out the images, as they could not be used!
-                processed_faces = []
-                processed_face_landmarks = []
-                recent_embeddings = []
-                logging.warning("Could not morph and animate the face %s", exc_info=True)
+
+
+
+            # # Average the landmarks together.
+            # average_landmarks = np.mean(processed_face_landmarks, 
+            #                             axis=0).astype(int).tolist()
+
+            # # Morph-align the faces to the averaged landmarks.
+            # morph_aligned_faces = []
+
+            # for face, landmarks in zip(processed_faces, processed_face_landmarks):
+            #     morphed_face = \
+            #         morph_align_face(source_face=face,
+            #                         source_face_landmarks=landmarks,
+            #                         target_face_landmarks=average_landmarks,
+            #                         triangulation_indexes=None)
+                
+            #     morph_aligned_faces.append(morphed_face)
+
+            # # Create an average face image for this dataset.
+            # average_face = get_average_face(morph_aligned_faces)
+
+            # # Finally, Display it!
+            # cv2.imshow("Display", average_face)
+            # cv2.waitKey(30)
+
 
     except Exception as e:
         logging.warning("TOP LEVEL ERROR! %s", exc_info=True)
         return False
 
 
-def main_display():
-    pygame.init()
-    monitor_resolution = (1920, 1080)
-    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-    clock = pygame.time.Clock()
-    fps = 30
-
-
-    frame = cv2.imread("mona_lisa_1080_1920.jpg")
-    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-    screen.blit(image_surface, (0, 0))
-
-    pygame.display.update()
-
-    while True:
-        print(animated_faces)
-        try:
-            with memory_lock:
-                if animated_faces:
-                    logging.info("Displaying main animation!")
-                    for frame in animated_faces[0]:
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-                        screen.blit(image_surface, (0, 0))
-
-                        pygame.display.update()
-                        clock.tick(fps)
-                else:
-                    logging.info("No faces to display yet.")
-                    time.sleep(1)
-
-        except Exception as e:
-            logging.warning(e)
-
-
-def right_display():
-    pygame.init()
-    monitor_resolution = (900, 1600)
-    screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-    clock = pygame.time.Clock()
-    fps = 30
-
-    while True:
-        try:
-            with memory_lock:
-                if processed_faces:
-                    logging.info("Displaying right face!")
-                    frame = cv2.cvtColor(processed_faces[0], cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-                    image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-                    screen.blit(image_surface, (0, 0))
-
-                    pygame.display.update()
-                    clock.tick(fps)
-                else:
-                    logging.info("No faces to display yet.")
-                    time.sleep(1)
-
-        except Exception as e:
-            logging.warning(e)
-
-
-
-# if __name__ == "__main__":
-#     # Get environment in SH mode
-#     os.environ["DISPLAY"] = ":0"
-
-#     # Change resolution to max supported
-#     # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
-
-#     # Rotate the screens
-#     os.system(f"xrandr --output HDMI-0 --rotate right")
-#     os.system(f"xrandr --output DP-1 --rotate right")
-
-#     # Hide the mouse
-#     os.system("unclutter -idle 0 &")
-
-#     # Load the YAML file
-#     with open("config.yaml", "r") as file:
-#         config = yaml.safe_load(file)
-
-#     def collect_faces_loop():
-#         while True:
-#             collect_faces(camera_type=config["camera_type"],
-#                           blur_threshold=config["blur_threshold"],
-#                           face_memory=config["face_memory"],
-#                           tolerance=config["tolerance"],
-#                           min_width=config["min_width"],
-#                           margin_fraction=config["margin_fraction"],
-#                           height_output=config["height_output"],
-#                           width_output=config["width_output"],
-#                           l=config["l"],
-#                           r=config["r"],
-#                           t=config["t"],
-#                           b=config["b"],
-#                           triangulation_indexes=config["triangulation_indexes"],
-#                           check_centering=config["check_centering"],
-#                           check_forward=config["check_forward"],
-#                           debug_images=config["debug_images"])
-
-
-#     # Create thread for collecting faces.
-#     threading.Thread(target=collect_faces_loop, daemon=True).start()
-
-
-
-
-
-#     def a():
-#         pygame.init()
-#         monitor_resolution = (1920, 1080)
-#         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
-#         clock = pygame.time.Clock()
-#         fps = 30
-
-#         frame = cv2.imread("mona_lisa_1080_1920.jpg")
-#         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-#         while True:
-#             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-#             screen.blit(image_surface, (0, 0))
-
-#             pygame.display.update()
-#             clock.tick(fps)
-
-
-#     def b():
-#         pygame.init()
-#         monitor_resolution = (900, 1600)
-#         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-#         clock = pygame.time.Clock()
-#         fps = 30
-
-#         frame = cv2.imread("mona_lisa_1080_1920.jpg")
-#         frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-#         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-#         while True:
-#             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-#             screen.blit(image_surface, (0, 0))
-
-#             pygame.display.update()
-#             clock.tick(fps)
-
-
-
-#     pa = Process(target=a)
-#     pa.start()
-
-#     pb = Process(target=b)
-#     pb.start()
-
-#     pa.join()
-#     pb.join()
-
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     # Get environment in SH mode
     os.environ["DISPLAY"] = ":0"
 
-    # Change resolution to max supported
-    # os.system(f"wlr-randr --output HDMI-0 --mode 1920x1080@60.000000")
 
-    # Rotate the screens
-    os.system(f"xrandr --output HDMI-0 --rotate right")
-    os.system(f"xrandr --output DP-1 --rotate right")
 
-    # Hide the mouse
-    os.system("unclutter -idle 0 &")
+    """
+    Copy from Mona Lisa Override!
+    """
+
 
     # Load the YAML file
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
 
-    def collect_faces_loop():
-        while True:
-            try:
-                collect_faces(camera_type=config["camera_type"],
-                            blur_threshold=config["blur_threshold"],
-                            face_memory=config["face_memory"],
-                            tolerance=config["tolerance"],
-                            min_width=config["min_width"],
-                            margin_fraction=config["margin_fraction"],
-                            height_output=config["height_output"],
-                            width_output=config["width_output"],
-                            l=config["l"],
-                            r=config["r"],
-                            t=config["t"],
-                            b=config["b"],
-                            triangulation_indexes=config["triangulation_indexes"],
-                            check_centering=config["check_centering"],
-                            check_forward=config["check_forward"],
-                            debug_images=config["debug_images"])
-            except Exception as e:
-                print(e)
 
-    # Create thread for collecting faces.
-    threading.Thread(target=collect_faces_loop, daemon=True).start()
-
-    # Start the display processes
-    display_processes = []
-    
-    def run_display(display_index, resolution, image_path, resize=None):
-        pygame.init()
-        screen = pygame.display.set_mode(resolution, pygame.FULLSCREEN, display=display_index)
-        clock = pygame.time.Clock()
-        fps = 30
-
-
-        while True:
-            if not processed_faces:
-                frame = cv2.imread(image_path)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            else:
-                frame = processed_faces[0]
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            if resize:
-                frame = cv2.resize(frame, resize, interpolation=cv2.INTER_LINEAR)
-
-            image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-            screen.blit(image_surface, (0, 0))
-            pygame.display.update()
-            clock.tick(fps)
-
-    # Main display (HDMI-0)
-    p1 = Process(target=run_display, 
-                args=(0, (1920, 1080), "mona_lisa_1080_1920.jpg"))
-    p1.start()
-    display_processes.append(p1)
-
-    # Right display (DP-1)
-    p2 = Process(target=run_display, 
-                args=(1, (900, 1600), "mona_lisa_1080_1920.jpg", (900, 1600)))
-    p2.start()
-    display_processes.append(p2)
-
-    # Wait for processes to complete
-    for p in display_processes:
-        p.join()
-
-
-
-
-
-
-
-
-
-
-
-
-    # # Start the displays.
-    # pa = Process(target=main_display)
-    # pa.start()
-    
-    # pb = Process(target=right_display)
-    # pb.start()
-    
-    # pa.join()
-    # pb.join()
-
-
-
-    # def a():
-    #     try:
-    #         pygame.init()
-    #         monitor_resolution = (1920, 1080)
-    #         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=0)
-    #         clock = pygame.time.Clock()
-    #         fps = 30
-
-    #         frame = cv2.imread("mona_lisa_1080_1920.jpg")
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    #         while True:
-    #             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-    #             screen.blit(image_surface, (0, 0))
-
-    #             pygame.display.update()
-    #             clock.tick(fps)
-    #     except KeyboardInterrupt:
-    #         pass
-    #     finally:
-    #         pygame.quit()
-    #         sys.exit()
-
-
-    # def b():
-    #     try:
-    #         pygame.init()
-    #         monitor_resolution = (900, 1600)
-    #         screen = pygame.display.set_mode(monitor_resolution, pygame.FULLSCREEN, display=1)
-    #         clock = pygame.time.Clock()
-    #         fps = 30
-    #         # else:
-    #         frame = cv2.imread("mona_lisa_1080_1920.jpg")
-    #         frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    #         while True:
-    #             # print(processed_faces)
-
-    #             # if processed_faces:
-    #             #     frame = processed_faces[0]
-    #             #     frame = cv2.resize(frame, (900, 1600), interpolation=cv2.INTER_LINEAR)
-    #             #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    #             image_surface = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
-    #             screen.blit(image_surface, (0, 0))
-
-    #             pygame.display.update()
-    #             clock.tick(fps)
-    
-    #     except KeyboardInterrupt:
-    #         pass
-    #     finally:
-    #         pygame.quit()
-    #         sys.exit()
-
-
-
-    # try:
-    #     pa = Process(target=a)
-    #     pa.start()
-
-    #     pb = Process(target=b)
-    #     pb.start()
-
-    # except KeyboardInterrupt:
-    #     pa.terminate()
-    #     pb.terminate()
-    #     pa.join()
-    #     pb.join()
+    while True:
+        try:
+            collect_faces(camera_type=config["camera_type"],
+                        blur_threshold=config["blur_threshold"],
+                        face_memory=config["face_memory"],
+                        tolerance=config["tolerance"],
+                        min_width=config["min_width"],
+                        margin_fraction=config["margin_fraction"],
+                        height_output=config["height_output"],
+                        width_output=config["width_output"],
+                        l=config["l"],
+                        r=config["r"],
+                        t=config["t"],
+                        b=config["b"],
+                        triangulation_indexes=config["triangulation_indexes"],
+                        check_centering=config["check_centering"],
+                        check_forward=config["check_forward"],
+                        debug_images=config["debug_images"])
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt!!! Exiting!!!")
+            break
+        except Exception:
+            pass

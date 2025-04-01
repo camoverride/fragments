@@ -2,7 +2,7 @@
 camera_type: webcam #picam
 
 # Dataset parameters
-face_memory: 2 # How many faces before the same is allowed again?
+face_memory: 5 # How many faces before the same is allowed again?
 tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters
@@ -15,8 +15,8 @@ check_centering: False # Checks if the face is centered
 check_forward: False # Checks if the face is looking forward
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
-l: 1.5
-r: 1.5
+l: 1.0
+r: 1.0
 t: 2.0
 b: 2.5
 

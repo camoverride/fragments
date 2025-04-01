@@ -448,16 +448,16 @@ def is_face_looking_forward(face_landmarks: List[int],
     z = angles[2] * 360
 
     # Check which way the face is oriented.
-    if y < -4: # Looking Left
+    if y < -6: # Looking Left
         looking_forward = False
 
-    elif y > 4: # Looking Right
+    elif y > 6: # Looking Right
         looking_forward = False
 
-    elif x < -4: # Looking Down
+    elif x < -6: # Looking Down
         looking_forward = False
 
-    elif x > 8: # Looking Up
+    elif x > 10: # Looking Up
         looking_forward = False
 
     else: # Looking Forward
