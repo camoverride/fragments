@@ -1,16 +1,16 @@
-# Birth 👶
+# Swarm
 
-Automatically create your children [[link](https://smith.cam/birth.html)]
+Average together a display faces [[link](https://smith.cam/swarm.html)]
 
 
 ## Setup
 
-This is intended to be run on a Ubuntu machine with a GPU. It must be
-run in conjunction with a model server and be in a Conda environment.
+This is intended to be run on a pi5.
 
-- `git clone git@github.com:camoverride/birth.git`
-- `cd birth`
-- `python3 -m venv .venv`
+- `git clone git@github.com:camoverride/fragments.git`
+- `cd fragments`
+- `git checkout swarm`
+- `python -m venv --system-site-packages .venv`
 - `source .venv/bin/activate`
 
 Install this package for installing dlib:
@@ -20,14 +20,11 @@ Install cmake which is requied by dlib which is in turn required by face_recogni
 - `sudo apt update`
 - `sudo apt install cmake`
 - `sudo apt install build-essential cmake libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev`
-- `export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6`
-- `ldd $CONDA_PREFIX/lib/python3.12/site-packages/_dlib_pybind11.cpython-312-x86_64-linux-gnu.so | grep stdc++`
-- `echo "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6" >> ~/.bashrc`
-- `source ~/.bashrc`
 - `pip install dlib -vvv`
 
 Install remaining requirements:
 - `pip install -r requirements.txt`
+- `sudo apt-get install unclutter`
 
 
 ## Test
