@@ -336,7 +336,6 @@ def collect_faces(camera_type : str,
                 _processed_faces = copy.deepcopy(processed_faces)
                 _processed_faces.extend([current_face])
 
-                print(_all_landmarks)
                 # Average the landmarks together.
                 average_landmarks = np.mean(_all_landmarks, 
                                             axis=0).astype(int).tolist()
@@ -357,11 +356,13 @@ def collect_faces(camera_type : str,
                 average_face = get_average_face(morph_aligned_faces)
 
                 # Finally, Display it!
+                logging.info("Displaying a face!")
                 cv2.imshow("Display", average_face)
                 cv2.waitKey(30)
 
             # This is the first run
             else:
+                logging.info("Showing first face!")
                 cv2.imshow("Display", current_face)
                 cv2.waitKey(30)
 
@@ -378,32 +379,6 @@ def collect_faces(camera_type : str,
                 processed_faces = processed_faces[:face_memory]
                 processed_face_landmarks = processed_face_landmarks[:face_memory]
                 recent_embeddings = recent_embeddings[:embedding_memory]
-
-
-
-
-            # # Average the landmarks together.
-            # average_landmarks = np.mean(processed_face_landmarks, 
-            #                             axis=0).astype(int).tolist()
-
-            # # Morph-align the faces to the averaged landmarks.
-            # morph_aligned_faces = []
-
-            # for face, landmarks in zip(processed_faces, processed_face_landmarks):
-            #     morphed_face = \
-            #         morph_align_face(source_face=face,
-            #                         source_face_landmarks=landmarks,
-            #                         target_face_landmarks=average_landmarks,
-            #                         triangulation_indexes=None)
-                
-            #     morph_aligned_faces.append(morphed_face)
-
-            # # Create an average face image for this dataset.
-            # average_face = get_average_face(morph_aligned_faces)
-
-            # # Finally, Display it!
-            # cv2.imshow("Display", average_face)
-            # cv2.waitKey(30)
 
 
     except Exception as e:
