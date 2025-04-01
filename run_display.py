@@ -404,10 +404,15 @@ if __name__ == "__main__":
         # Set up the display
         cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-        # Set up the background
-        # cv2.imshow("Display Image", background_image)
-        # cv2.waitKey(10)
+        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
+        cv2.waitKey(1000)
+    
+    else:
+        # Set up the display
+        cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
+        cv2.waitKey(1000)
 
     while True:
         try:

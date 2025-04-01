@@ -1,5 +1,5 @@
 # Camera type
-camera_type: picam
+camera_type: webcam
 
 # Dataset parameters
 face_memory: 8 # How many faces will be part of the collage?
