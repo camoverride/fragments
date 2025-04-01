@@ -1,8 +1,9 @@
 # Camera type
-camera_type: webcam #picam
+camera_type: picam
 
 # Dataset parameters
-face_memory: 5 # How many faces before the same is allowed again?
+face_memory: 8 # How many faces will be part of the collage?
+embedding_memory: 3 # How many embeddings are remembered? If `embedding_memory` < `face_memory`, then repeats are allowed
 tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters

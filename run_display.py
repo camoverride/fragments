@@ -48,6 +48,7 @@ memory_lock = threading.Lock()
 def collect_faces(camera_type : str,
                   blur_threshold : float,
                   face_memory : int,
+                  embedding_memory : int,
                   tolerance : float,
                   min_width : int,
                   margin_fraction : float, # TODO: work on this!
@@ -103,6 +104,9 @@ def collect_faces(camera_type : str,
         How many faces/embeddings/landmarks should we keep in memory? If
         too many accumulate, the machine can crash! NOTE: in the default
         mode, only the two most recent faces are used.
+    embedding_memory : int
+        How many embeddings are remembered? NOTE: if `embedding_memory` <
+        `face_memory`, then repeated faces are allowed inton the collage.
     tolerance : float
         The face recognition tolerance. NOTE: 0.6 is standard in the industry.
         Higher values mean that when comparing two embeddings, the algorithm
@@ -373,7 +377,7 @@ def collect_faces(camera_type : str,
                 # Make sure this list doesn't get too long!
                 processed_faces = processed_faces[:face_memory]
                 processed_face_landmarks = processed_face_landmarks[:face_memory]
-                recent_embeddings = recent_embeddings[:face_memory]
+                recent_embeddings = recent_embeddings[:embedding_memory]
 
 
 
@@ -428,6 +432,7 @@ if __name__ == "__main__":
             collect_faces(camera_type=config["camera_type"],
                         blur_threshold=config["blur_threshold"],
                         face_memory=config["face_memory"],
+                        embedding_memory=config["embedding_memory"],
                         tolerance=config["tolerance"],
                         min_width=config["min_width"],
                         margin_fraction=config["margin_fraction"],
