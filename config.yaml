@@ -7,7 +7,7 @@ embedding_memory: 3 # How many embeddings are remembered? If `embedding_memory` 
 tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters
-blur_threshold: 999 # Definitely check on this - depends on camera (50 - 200)
+blur_threshold: 250 # Definitely check on this - depends on camera (50 - 200)
 min_width: 0
 margin_fraction: 0.6 # This might need to be wider. NOTE: source of bugs!
 height_output: 1920 # Should be same as monitor height :`wlr-randr`

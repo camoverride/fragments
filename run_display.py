@@ -357,13 +357,13 @@ def collect_faces(camera_type : str,
 
                 # Finally, Display it!
                 logging.info("Displaying a face!")
-                cv2.imshow("Display", average_face)
+                cv2.imshow("Display Image", average_face)
                 cv2.waitKey(30)
 
             # This is the first run
             else:
                 logging.info("Showing first face!")
-                cv2.imshow("Display", current_face)
+                cv2.imshow("Display Image", current_face)
                 cv2.waitKey(30)
 
             # Track everything!
@@ -387,20 +387,27 @@ def collect_faces(camera_type : str,
 
 
 if __name__ == "__main__":
-    # Get environment in SH mode
-    os.environ["DISPLAY"] = ":0"
-
-
-
-    """
-    Copy from Mona Lisa Override!
-    """
-
-
     # Load the YAML file
     with open("config.yaml", "r") as file:
         config = yaml.safe_load(file)
 
+    # Get environment in SH mode
+    os.environ["DISPLAY"] = ":0"
+
+    if config["camera_type"] == "picam":
+        # Rotate the screen
+        os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
+        
+        # Hide the mouse
+        os.system("unclutter -idle 0 &")
+
+        # Set up the display
+        cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+        # Set up the background
+        # cv2.imshow("Display Image", background_image)
+        # cv2.waitKey(10)
 
     while True:
         try:
