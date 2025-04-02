@@ -395,6 +395,7 @@ if __name__ == "__main__":
     os.environ["DISPLAY"] = ":0"
 
     if config["camera_type"] == "picam":
+        logging.info("STARTING SCRIPT - picam mode!")
         # Rotate the screen
         os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
         
