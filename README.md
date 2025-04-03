@@ -51,6 +51,6 @@ Start the service using the commands below:
 - `systemctl --user enable display.service`
 - `systemctl --user start display.service`
 
-Start it on boot: `sudo loginctl enable-linger cam`
+Start it on boot: `sudo loginctl enable-linger pi`
 
 Get the logs: `journalctl --user -u display.service`
