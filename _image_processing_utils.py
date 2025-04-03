@@ -1119,3 +1119,45 @@ def is_face_centered(relative_bb) -> bool:
                   (middle_y_min <= center_y < middle_y_max)
 
     return is_centered
+
+
+
+def is_face_well_positioned(relative_bb, K=1.0) -> bool:
+    """
+    Determines whether a face bounding box is not too close to the edge of the image.
+
+    A bounding box is considered too close if it is within K times its width from the left or right edges,
+    or within K times its height from the top or bottom edges.
+
+    Parameters
+    ----------
+    relative_bb : object
+        A bounding box object with attributes `xmin`, `ymin`, `width`, and `height`
+        (all normalized to the image dimensions, i.e., in the range [0, 1]).
+    K : float, optional
+        A scaling factor that determines how far the face should be from the edges (default is 1.0).
+
+    Returns
+    -------
+    bool
+        True if the bounding box is not too close to the edges, False otherwise.
+    """
+    # Extract normalized bounding box coordinates
+    xmin = relative_bb.xmin
+    ymin = relative_bb.ymin
+    width = relative_bb.width
+    height = relative_bb.height
+
+    # Calculate edge thresholds
+    left_threshold = K * width
+    right_threshold = 1 - (K * width)
+    top_threshold = K * height
+    bottom_threshold = 1 - (K * height)
+
+    # Check if the bounding box is too close to the edges
+    if xmin < left_threshold or (xmin + width) > right_threshold:
+        return False
+    if ymin < top_threshold or (ymin + height) > bottom_threshold:
+        return False
+    
+    return True

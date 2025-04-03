@@ -13,7 +13,7 @@ import numpy as np
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, \
     morph_align_face, is_face_looking_forward, crop_align_image_based_on_eyes, \
-        get_average_face
+        get_average_face, is_face_well_positioned
 
 
 
@@ -183,7 +183,8 @@ def collect_faces(camera_type : str,
 
             # Check if face is too far from the center.
             if check_centering:
-                if not is_face_centered(bb):
+                # if not is_face_centered(bb):
+                if not is_face_well_positioned(bb, K=0.5):
                     logging.debug("Face is not centered!!!")
                     return False
 
