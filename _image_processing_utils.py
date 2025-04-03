@@ -917,7 +917,9 @@ def get_faces_from_camera(camera_type : str,
         frame = picam2.capture_array()
 
     if debug:
-        cv2.imshow("Display Image", frame)
+        cv2.namedWindow("Camera cap", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Camera cap", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Camera cap", frame)
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
     
