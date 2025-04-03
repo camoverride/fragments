@@ -226,8 +226,10 @@ def collect_faces(camera_type : str,
             
             # If there are no results, return False
             if not face_mesh_results:
+                logging.info("No face mesh results")
                 return False
             if not face_mesh_results.multi_face_landmarks:
+                logging.info("No face mesh results")
                 return False
 
             # Get the landmarks.
