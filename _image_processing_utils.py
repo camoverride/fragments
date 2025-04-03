@@ -908,6 +908,9 @@ def get_faces_from_camera(camera_type : str,
         is a frame from the webcam, and the second element
         is a list of bounding boxes that contain faces.
     """
+    # Give camera time to warm up.
+
+    cv2.waitKey(30)
     if camera_type == "webcam":
         # Get a frame from the webcam.
         ret, frame = cap.read()
