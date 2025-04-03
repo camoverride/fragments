@@ -185,7 +185,7 @@ def collect_faces(camera_type : str,
             if check_centering:
                 # if not is_face_centered(bb):
                 if not is_face_well_positioned(bb, K=0.5):
-                    logging.debug("Face is not centered!!!")
+                    logging.info("Face is not centered!!!")
                     return False
 
             # Get a simple-cropped face with tight margins for blur detection.
