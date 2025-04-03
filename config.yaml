@@ -8,13 +8,13 @@ tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters
 blur_threshold: 250 # Definitely check on this - depends on camera (50 - 200)
-min_width: 0
+min_width: 500
 margin_fraction: 0.6 # This might need to be wider. NOTE: source of bugs!
 height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
 check_centering: True # Checks if the face is centered
-check_forward: False # Checks if the face is looking forward
-centering_sensitivity : 0.3
+check_forward: True # Checks if the face is looking forward
+centering_sensitivity : 0.2
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
 l: 1.0

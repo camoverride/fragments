@@ -21,7 +21,7 @@ cv2.waitKey(1000) # pause so first frame isn't dark
 
 # Initialize detection.
 face_detection = \
-    mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.9)
+    mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5)
 
 face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True,
                                             max_num_faces=1,
