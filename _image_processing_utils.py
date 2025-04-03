@@ -1124,12 +1124,12 @@ def is_face_centered(relative_bb) -> bool:
 
 
 
-def is_face_well_positioned(relative_bb, K=1.0) -> bool:
+def is_face_well_positioned(relative_bb, K) -> bool:
     """
     Determines whether a face bounding box is not too close to the edge of the image.
 
-    A bounding box is considered too close if it is within K times its width from the left or right edges,
-    or within K times its height from the top or bottom edges.
+    A bounding box is considered too close if any part of it is within K (a fraction of the image size) 
+    from the left, right, top, or bottom edges of the image.
 
     Parameters
     ----------
@@ -1137,7 +1137,7 @@ def is_face_well_positioned(relative_bb, K=1.0) -> bool:
         A bounding box object with attributes `xmin`, `ymin`, `width`, and `height`
         (all normalized to the image dimensions, i.e., in the range [0, 1]).
     K : float, optional
-        A scaling factor that determines how far the face should be from the edges (default is 1.0).
+        A fraction of the image dimensions defining the safe margin from edges (default is 1.0).
 
     Returns
     -------
@@ -1150,16 +1150,20 @@ def is_face_well_positioned(relative_bb, K=1.0) -> bool:
     width = relative_bb.width
     height = relative_bb.height
 
-    # Calculate edge thresholds
-    left_threshold = K * width
-    right_threshold = 1 - (K * width)
-    top_threshold = K * height
-    bottom_threshold = 1 - (K * height)
+    # Compute the bounding box edges
+    xmax = xmin + width
+    ymax = ymin + height
 
-    # Check if the bounding box is too close to the edges
-    if xmin < left_threshold or (xmin + width) > right_threshold:
+    # Define safe margins based on the entire image size
+    left_margin = K
+    right_margin = 1 - K
+    top_margin = K
+    bottom_margin = 1 - K
+
+    # Check if the bounding box is too close to any edge
+    if xmin < left_margin or xmax > right_margin:
         return False
-    if ymin < top_threshold or (ymin + height) > bottom_threshold:
+    if ymin < top_margin or ymax > bottom_margin:
         return False
     
     return True

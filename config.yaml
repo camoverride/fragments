@@ -14,6 +14,7 @@ height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
 check_centering: True # Checks if the face is centered
 check_forward: False # Checks if the face is looking forward
+centering_sensitivity : 0.3
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`
 l: 1.0

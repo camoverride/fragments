@@ -61,7 +61,8 @@ def collect_faces(camera_type : str,
                   triangulation_indexes : list, # TODO: add this!
                   check_centering : bool,
                   check_forward : bool,
-                  debug_images : bool) -> bool: # TODO: remove debug! 
+                  debug_images : bool,
+                  centering_sensitivity : float) -> bool: # TODO: remove debug! 
     """
     This function gets faces from the webcam and applies a processing
     pipeline. After this pipeline executes, if a new face has been
@@ -149,6 +150,9 @@ def collect_faces(camera_type : str,
     debug_images : bool
         If True, images of intermediate processing steps are displayed.
         This should always be False when used in production mode.
+    centering_sensitivity : float
+        0 means the face can be directly on the edge, 1 means the face can be
+        1 width/height from the sides/top/bottom.
 
     Returns
     -------
@@ -184,7 +188,7 @@ def collect_faces(camera_type : str,
             # Check if face is too far from the center.
             if check_centering:
                 # if not is_face_centered(bb):
-                if not is_face_well_positioned(bb, K=0.5):
+                if not is_face_well_positioned(bb, K=centering_sensitivity):
                     logging.info("Face is not centered!!!")
                     return False
 
@@ -395,6 +399,11 @@ if __name__ == "__main__":
     # Get environment in SH mode
     os.environ["DISPLAY"] = ":0"
 
+    # Get the starting default image
+    starting_image = cv2.imread("starting_image_900_1600.png")
+    starting_image = cv2.resize(starting_image,
+                                (config["width_output"], config["height_output"]))
+
     if config["camera_type"] == "picam":
         logging.info("STARTING SCRIPT - picam mode!")
         # Rotate the screen
@@ -406,14 +415,14 @@ if __name__ == "__main__":
         # Set up the display
         cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
+        cv2.imshow("Display Image", starting_image)
         cv2.waitKey(1000)
     
     else:
         # Set up the display
         cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
+        cv2.imshow("Display Image", starting_image)
         cv2.waitKey(1000)
 
     while True:
@@ -434,7 +443,8 @@ if __name__ == "__main__":
                         triangulation_indexes=config["triangulation_indexes"],
                         check_centering=config["check_centering"],
                         check_forward=config["check_forward"],
-                        debug_images=config["debug_images"])
+                        debug_images=config["debug_images"],
+                        centering_sensitivity=config["centering_sensitivity"])
         except KeyboardInterrupt:
             print("Keyboard Interrupt!!! Exiting!!!")
             break
