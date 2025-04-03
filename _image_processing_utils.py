@@ -917,7 +917,7 @@ def get_faces_from_camera(camera_type : str,
         frame = picam2.capture_array()
 
     if debug:
-        cv2.imshow("Image from webcam", frame)
+        cv2.imshow("Display Image", frame)
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
     
