@@ -913,7 +913,6 @@ def get_faces_from_camera(camera_type : str,
             raise ValueError("Failed to capture image from webcam.")
     elif camera_type == "picam":
         frame = picam2.capture_array()
-        print(frame)
 
     if debug:
         cv2.imshow("Image from webcam", frame)
