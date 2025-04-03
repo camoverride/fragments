@@ -394,10 +394,6 @@ if __name__ == "__main__":
     # Get environment in SH mode
     os.environ["DISPLAY"] = ":0"
 
-    # Get the starting image
-    starting_image = cv2.imread("starting_image_900_1600.png")
-    starting_image = cv2.resize(starting_image, (config["width_output"], config["height_output"]))
-
     if config["camera_type"] == "picam":
         logging.info("STARTING SCRIPT - picam mode!")
         # Rotate the screen
@@ -409,14 +405,14 @@ if __name__ == "__main__":
         # Set up the display
         cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", starting_image)
+        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
         cv2.waitKey(1000)
     
     else:
         # Set up the display
         cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", starting_image)
+        cv2.imshow("Display Image", cv2.imread("starting_image_900_1600.png"))
         cv2.waitKey(1000)
 
     while True:
