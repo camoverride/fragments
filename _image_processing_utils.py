@@ -40,6 +40,7 @@ if config["camera_type"] == "picam":
     picam2.configure(picam2.create_preview_configuration(
         # main={"size": (1920, 1080), "format": "RGB888"},
         # lores={"size": (640, 480)},
+        main={"format": "RGB888"},
         display="main"))
     
     picam2.start()
