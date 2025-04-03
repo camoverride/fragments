@@ -41,7 +41,7 @@ if config["camera_type"] == "picam":
         # main={"size": (1920, 1080), "format": "RGB888"},
         # lores={"size": (640, 480)},
         # main={"format": "RGB888"},
-        main={"size": (3280, 2464), "format": "RGB888"}
+        main={"size": (3280, 2464), "format": "RGB888"},
         display="main"))
     
     picam2.start()
