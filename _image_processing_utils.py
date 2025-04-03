@@ -6,6 +6,7 @@ import random
 import numpy as np
 import yaml
 import logging
+import time
 
 
 
@@ -909,8 +910,8 @@ def get_faces_from_camera(camera_type : str,
         is a list of bounding boxes that contain faces.
     """
     # Give camera time to warm up.
+    time.sleep(0.05)
 
-    cv2.waitKey(30)
     if camera_type == "webcam":
         # Get a frame from the webcam.
         ret, frame = cap.read()
