@@ -967,10 +967,8 @@ def get_faces_from_camera(camera_type: str, debug: bool):
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
 
-    print("GOT TO HERE!!!!!")
     # Detect faces using MTCNN
     boxes, probs = mtcnn.detect(frame)
-    print("MTCNN WORKED KINSA")
 
     # If no faces are detected, return False
     if boxes is None:
