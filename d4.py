@@ -26,7 +26,7 @@ screen = pygame.display.set_mode(
 )
 
 # Load and display image
-img = pygame.image.load(m['image'])
+img = pygame.image.load("face_1.jpg")
 img = pygame.transform.scale(img, (1600, 900))
 screen.blit(img, (0, 0))
 pygame.display.flip()
