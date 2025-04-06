@@ -922,7 +922,6 @@ from facenet_pytorch import MTCNN
 
 
 mtcnn = MTCNN(min_face_size=300,
-              scale_factor=0.709,
               use_cuda=True)
 
 
