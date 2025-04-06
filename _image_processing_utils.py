@@ -1048,7 +1048,7 @@ def get_faces_from_camera(camera_type : str,
     height, width, _ = frame.shape
     relative_bbs = []
     if boxes is None:
-        return False
+        return False, False
     
     for box in boxes:
         # Each box is a tuple (x_min, y_min, x_max, y_max)
