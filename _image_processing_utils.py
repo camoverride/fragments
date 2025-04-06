@@ -20,8 +20,8 @@ logging.basicConfig(
 # Initialize image capture.
 cap = cv2.VideoCapture(0)
 # Set to the max dims supported by the webcam
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # Set width
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # Set height
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # Set width
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # Set height
 cv2.waitKey(1000) # pause so first frame isn't dark
 
 # Initialize detection.
@@ -930,68 +930,8 @@ class RelativeBoundingBox:
         self.width = width
         self.height = height
 
-def get_faces_from_camera(camera_type: str, debug: bool):
-    """
-    Detects faces from the camera feed and returns a frame with bounding boxes.
 
-    Parameters
-    ----------
-    camera_type : str
-        The type of camera being used ('webcam' or 'picam').
-    debug : bool
-        If True, display the frame in fullscreen.
 
-    Returns
-    -------
-    tuple
-        A tuple with (np.ndarray, list) where the first element is the captured frame and the second is a list of relative bounding boxes.
-    """
-
-    # Give camera time to warm up
-    time.sleep(0.35)
-
-    if camera_type == "webcam":
-        # Open the webcam
-        cap = cv2.VideoCapture(0)
-        ret, frame = cap.read()
-        if not ret:
-            raise ValueError("Failed to capture image from webcam.")
-    elif camera_type == "picam":
-        # Use picamera (this part would depend on your actual setup)
-        # frame = picam2.capture_array()
-        pass
-
-    # If in debug mode, display the frame
-    if debug:
-        cv2.imshow("Camera cap", frame)
-        cv2.waitKey(3000)
-        cv2.destroyAllWindows()
-
-    # Detect faces using MTCNN
-    boxes, probs = mtcnn.detect(frame)
-
-    # If no faces are detected, return False
-    if boxes is None:
-        return False, False
-
-    # Convert absolute bounding boxes to relative bounding boxes
-    height, width, _ = frame.shape
-    relative_bbs = []
-    
-    for box in boxes:
-        # Each box is a tuple (x_min, y_min, x_max, y_max)
-        xmin, ymin, xmax, ymax = box
-
-        # Normalize to get relative bounding boxes
-        relative_xmin = xmin / width
-        relative_ymin = ymin / height
-        relative_width = (xmax - xmin) / width
-        relative_height = (ymax - ymin) / height
-        
-        # Create RelativeBoundingBox object
-        relative_bbs.append(RelativeBoundingBox(relative_xmin, relative_ymin, relative_width, relative_height))
-
-    return frame, relative_bbs
 def get_faces_from_camera(camera_type : str,
                           debug : bool):
     """
@@ -1064,6 +1004,7 @@ def get_faces_from_camera(camera_type : str,
         relative_bbs.append(RelativeBoundingBox(relative_xmin, relative_ymin, relative_width, relative_height))
 
     return frame, relative_bbs
+
     # If there are no faces, return False.
     # if not frame_data.detections:
     #     return False, False
