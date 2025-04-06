@@ -218,8 +218,8 @@ def _select_face_by_overlap(image, results, bb) -> int:
     return best_idx
 
 
-def align_eyes_horizontally(image : np.ndarray,
-                            bb : tuple) -> tuple:
+def align_eyes_horizontally(image: np.ndarray,
+                            relative_bb: object) -> tuple:
     """
     Rotate an image so that the eyes are positioned horizontally.
     This makes it much more straightforward for subsequent cropping.
@@ -230,8 +230,9 @@ def align_eyes_horizontally(image : np.ndarray,
     ----------
     image : np.ndarray
         An image that should contain a face.
-    bb : tuple
-        A bounding box containing the face we care about.
+    relative_bb : object
+        A bounding box containing the face we care about. The object
+        should have attributes: xmin, ymin, width, height.
     
     Returns
     -------
@@ -240,15 +241,20 @@ def align_eyes_horizontally(image : np.ndarray,
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
     """
-    # Read the image.
-    x, y, w, h = bb  # Extract bounding box info
-    margin = 100  # Margin to pad the bounding box
+    # Extract bounding box information from relative_bb
+    xmin = relative_bb.xmin
+    ymin = relative_bb.ymin
+    width = relative_bb.width
+    height = relative_bb.height
+    
+    # Define the margin to pad the bounding box
+    margin = 100
     
     # Define the region of interest with margin
-    roi_x1 = max(x - margin, 0)
-    roi_y1 = max(y - margin, 0)
-    roi_x2 = min(x + w + margin, image.shape[1])
-    roi_y2 = min(y + h + margin, image.shape[0])
+    roi_x1 = max(xmin - margin, 0)
+    roi_y1 = max(ymin - margin, 0)
+    roi_x2 = min(xmin + width + margin, image.shape[1])
+    roi_y2 = min(ymin + height + margin, image.shape[0])
     
     # Crop the region of interest
     roi_image = image[roi_y1:roi_y2, roi_x1:roi_x2]
@@ -261,7 +267,7 @@ def align_eyes_horizontally(image : np.ndarray,
         raise ValueError("Alignment phase: no face detected.")
     
     # Find face mesh with maximum overlap with bb
-    best_face_idx = _select_face_by_overlap(roi_image, results, bb)
+    best_face_idx = _select_face_by_overlap(roi_image, results, (xmin, ymin, width, height))
     landmarks = results.multi_face_landmarks[best_face_idx].landmark
     
     # Convert landmarks to image coordinates (relative to the cropped ROI)
@@ -297,6 +303,7 @@ def align_eyes_horizontally(image : np.ndarray,
         rotated_landmarks.append(rotated_landmark)
     
     return rotated_image, rotated_landmarks
+
 
 def crop_image_based_on_eyes(image : np.ndarray,
                              landmarks : np.ndarray,
