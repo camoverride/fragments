@@ -242,7 +242,7 @@ def align_eyes_horizontally(image : np.ndarray,
         TODO: what type exactly are the mediapipe landmarks?
     """
     # Read the image.
-    image_rgb = image #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(image_rgb)
     
     if not results.multi_face_landmarks:
@@ -978,8 +978,8 @@ def get_faces_from_camera(camera_type : str,
         cv2.destroyAllWindows()
     
 
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_data = face_detection.process(frame_rgb)
+    # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # frame_data = face_detection.process(frame_rgb)
     # Look for faces in the frame
     frame_data = face_detection.process(frame)
     boxes, probs = mtcnn.detect(frame)
