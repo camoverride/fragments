@@ -2,76 +2,94 @@ import pygame
 import multiprocessing
 import os
 import subprocess
+import signal
 
-# Force fullscreen settings (disable window decorations)
-os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
-os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = "0"  # Disable compositor
-os.environ['SDL_VIDEO_X11_FORCE_EGL'] = "1"  # Force hardware acceleration
-
-# Monitor configurations from xrandr
-MONITORS = {
-    "DP-1": {"x": 1920, "width": 1600, "height": 900},
-    "DVI-D-0": {"x": 3520, "width": 1600, "height": 900}
-}
-
-def hide_system_bars():
-    """Hide Ubuntu dock and top bar"""
-    subprocess.run(["gsettings", "set", "org.gnome.shell.extensions.dash-to-dock", "autohide", "true"])
-    subprocess.run(["gsettings", "set", "org.gnome.shell.extensions.dash-to-dock", "dock-fixed", "false"])
+def get_monitor_geometry(name):
+    """Get x position and resolution for monitor by name"""
+    try:
+        output = subprocess.check_output(['xrandr', '--query']).decode()
+        for line in output.splitlines():
+            if name in line and ' connected' in line:
+                parts = line.split()
+                res_pos = parts[2]  # e.g. 1600x900+1920+0
+                width, height = map(int, res_pos.split('+')[0].split('x'))
+                x_pos = int(res_pos.split('+')[1])
+                return x_pos, width, height
+    except Exception as e:
+        print(f"Error getting monitor info: {e}")
+    return None
 
 def show_image(monitor_name, image_path):
-    """Fullscreen display on specified monitor"""
-    m = MONITORS[monitor_name]
+    """Display image on specified monitor"""
+    geo = get_monitor_geometry(monitor_name)
+    if not geo:
+        print(f"Monitor {monitor_name} not found!")
+        return
+
+    x_pos, width, height = geo
     
-    # Position window first
-    os.environ['SDL_VIDEO_WINDOW_POS'] = f"{m['x']},0"
+    # Set window position before init
+    os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x_pos},0"
+    os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = "0"
     
     pygame.init()
-    
-    # Create undecorated fullscreen window
-    screen = pygame.display.set_mode(
-        (m['width'], m['height']),
-        pygame.FULLSCREEN | pygame.NOFRAME | pygame.HWSURFACE,
-        display=0  # Will be positioned via SDL_VIDEO_WINDOW_POS
-    )
-    
-    # Hide mouse cursor
-    pygame.mouse.set_visible(False)
-    
-    # Load and scale image
-    img = pygame.transform.scale(
-        pygame.image.load(image_path),
-        (m['width'], m['height'])
-    )
-    
-    clock = pygame.time.Clock()
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                running = False
+    try:
+        # Create borderless fullscreen window
+        screen = pygame.display.set_mode(
+            (width, height),
+            pygame.NOFRAME | pygame.HWSURFACE
+        )
         
-        screen.blit(img, (0, 0))
-        pygame.display.flip()
-        clock.tick(30)
-    
-    pygame.quit()
+        # Hide mouse cursor
+        pygame.mouse.set_visible(False)
+        
+        # Load and scale image
+        img = pygame.transform.scale(
+            pygame.image.load(image_path),
+            (width, height)
+        )
+        
+        clock = pygame.time.Clock()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                    running = False
+            
+            screen.blit(img, (0, 0))
+            pygame.display.flip()
+            clock.tick(30)
+            
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pygame.quit()
 
 if __name__ == "__main__":
-    hide_system_bars()  # Hide Ubuntu UI elements
+    # Configure monitors by name
+    config = {
+        "DP-1": "face_1.jpg",
+        "DVI-D-0": "face_2.jpg"
+    }
     
-    processes = [
-        multiprocessing.Process(target=show_image, args=("DP-1", "face_1.jpg")),
-        multiprocessing.Process(target=show_image, args=("DVI-D-0", "face_2.jpg"))
-    ]
-    
-    for p in processes:
+    # Start processes
+    processes = []
+    for name, image in config.items():
+        p = multiprocessing.Process(
+            target=show_image,
+            args=(name, image)
+        )
         p.start()
+        processes.append(p)
     
-    try:
+    # Handle Ctrl+C gracefully
+    def signal_handler(sig, frame):
         for p in processes:
-            p.join()
-    finally:
-        # Restore system UI when done
-        subprocess.run(["gsettings", "set", "org.gnome.shell.extensions.dash-to-dock", "autohide", "false"])
-        subprocess.run(["gsettings", "set", "org.gnome.shell.extensions.dash-to-dock", "dock-fixed", "true"])
+            p.terminate()
+        os._exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # Wait for processes
+    for p in processes:
+        p.join()
