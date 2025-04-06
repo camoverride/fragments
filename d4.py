@@ -25,7 +25,7 @@ def display_dvi_d_0():
     img = pygame.image.load(DVI_D_0['image'])
     img = pygame.transform.scale(img, (DVI_D_0['width'], DVI_D_0['height']))
     screen.blit(img, (0, 0))
-    pygame.display.flip()
+    # pygame.display.flip()
     
     while True:
         pygame.time.wait(1000)
@@ -45,7 +45,7 @@ def display_dp_1():
     img = pygame.image.load(DP_1['image'])
     img = pygame.transform.scale(img, (DP_1['width'], DP_1['height']))
     screen.blit(img, (0, 0))
-    pygame.display.flip()
+    # pygame.display.flip()
     
     while True:
         pygame.time.wait(1000)
@@ -94,6 +94,7 @@ def display_hdmi_0():
         frame = frames[current_frame]
         if len(frame.shape) == 2:  # Grayscale to RGB
             frame = np.stack((frame,)*3, axis=-1)
+        frame = frame[..., ::-1]  # RGB to BGR (fixes blue tint)
         
         surf = pygame.surfarray.make_surface(frame)
         surf = pygame.transform.scale(surf, (HDMI_0['width'], HDMI_0['height']))
