@@ -266,8 +266,10 @@ def align_eyes_horizontally(image: np.ndarray,
         raise ValueError("Alignment phase: no face detected.")
     
     # Find face mesh with maximum overlap with bb
-    best_face_idx = _select_face_by_overlap(roi_image, results, (xmin, ymin, width, height))
-    landmarks = results.multi_face_landmarks[best_face_idx].landmark
+    # best_face_idx = _select_face_by_overlap(roi_image, results, (xmin, ymin, width, height))
+    # landmarks = results.multi_face_landmarks[best_face_idx].landmark
+    landmarks = results.multi_face_landmarks[0].landmark
+
     
     # Convert landmarks to image coordinates (relative to the cropped ROI)
     roi_h, roi_w = roi_image.shape[:2]
