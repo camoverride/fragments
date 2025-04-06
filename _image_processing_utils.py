@@ -921,9 +921,7 @@ def create_composite_image(image_list: List[np.ndarray], num_squares_height: int
 from facenet_pytorch import MTCNN
 
 
-mtcnn = MTCNN(min_face_size=300,
-              use_cuda=True)
-
+mtcnn = MTCNN(min_face_size=300)
 
 class RelativeBoundingBox:
     def __init__(self, xmin, ymin, width, height):
