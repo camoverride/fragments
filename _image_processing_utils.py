@@ -239,24 +239,34 @@ def align_eyes_horizontally(image : np.ndarray,
         A tuple of two items.
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
-        TODO: what type exactly are the mediapipe landmarks?
     """
     # Read the image.
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    x, y, w, h = bb  # Extract bounding box info
+    margin = 100  # Margin to pad the bounding box
+    
+    # Define the region of interest with margin
+    roi_x1 = max(x - margin, 0)
+    roi_y1 = max(y - margin, 0)
+    roi_x2 = min(x + w + margin, image.shape[1])
+    roi_y2 = min(y + h + margin, image.shape[0])
+    
+    # Crop the region of interest
+    roi_image = image[roi_y1:roi_y2, roi_x1:roi_x2]
+    
+    # Process the cropped image for face mesh
+    image_rgb = cv2.cvtColor(roi_image, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(image_rgb)
     
     if not results.multi_face_landmarks:
         raise ValueError("Alignment phase: no face detected.")
     
     # Find face mesh with maximum overlap with bb
-    best_face_idx = _select_face_by_overlap(image_rgb, results, bb)
+    best_face_idx = _select_face_by_overlap(roi_image, results, bb)
     landmarks = results.multi_face_landmarks[best_face_idx].landmark
     
-
-
-        # Convert landmarks to image coordinates
-    h, w = image.shape[:2]
-    landmark_points = np.array([(lm.x * w, lm.y * h) for lm in landmarks], dtype=np.float32)
+    # Convert landmarks to image coordinates (relative to the cropped ROI)
+    roi_h, roi_w = roi_image.shape[:2]
+    landmark_points = np.array([(lm.x * roi_w, lm.y * roi_h) for lm in landmarks], dtype=np.float32)
     
     # Calculate rotation angle
     left_eye = landmark_points[33]
@@ -266,28 +276,27 @@ def align_eyes_horizontally(image : np.ndarray,
     angle = np.degrees(np.arctan2(dy, dx))
     
     # Create rotation matrix
-    center = (w // 2, h // 2)
+    center = (roi_w // 2, roi_h // 2)
     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     
     # Rotate image
-    rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h))
+    rotated_image = cv2.warpAffine(roi_image, rotation_matrix, (roi_w, roi_h))
     
     # Rotate landmarks (add homogeneous coordinate)
     homogeneous_landmarks = np.column_stack([landmark_points, np.ones(len(landmark_points))])
     rotated_points = (rotation_matrix @ homogeneous_landmarks.T).T
     
-    # Convert back to MediaPipe landmark format
+    # Convert back to original image coordinates
     rotated_landmarks = []
     for i, (x, y) in enumerate(rotated_points):
         landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
         rotated_landmark = type(landmark)()
-        rotated_landmark.x = x / w
-        rotated_landmark.y = y / h
+        rotated_landmark.x = (x + roi_x1) / image.shape[1]  # Convert to original coordinates
+        rotated_landmark.y = (y + roi_y1) / image.shape[0]  # Convert to original coordinates
         rotated_landmark.z = landmark.z  # Z remains unchanged in 2D rotation
         rotated_landmarks.append(rotated_landmark)
     
     return rotated_image, rotated_landmarks
-
 
 def crop_image_based_on_eyes(image : np.ndarray,
                              landmarks : np.ndarray,
