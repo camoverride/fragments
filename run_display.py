@@ -269,18 +269,18 @@ def collect_faces(camera_type : str,
 
             # Process the images with face_mesh to rotate and align the pupils.
             # BIG PROBLEM! Why is this reading image=frame and then not cropping to bb!
-            try:
-                face_cropped_rotated = \
-                    crop_align_image_based_on_eyes(image=frame,
-                                                   bb=bb,
-                                                   l=l,
-                                                   r=r,
-                                                   t=t,
-                                                   b=b)
-            except ValueError as e:
-                logging.warning("Error face crop/rotate!")
-                logging.warning(e)
-                return False
+            # try:
+            face_cropped_rotated = \
+                crop_align_image_based_on_eyes(image=frame,
+                                                bb=bb,
+                                                l=l,
+                                                r=r,
+                                                t=t,
+                                                b=b)
+            # except ValueError as e:
+            #     logging.warning("Error face crop/rotate!")
+            #     logging.warning(e)
+                # return False
 
             if debug_images:
                 cv2.imshow("Face, cropped and pupil-aligned", face_cropped_rotated)
