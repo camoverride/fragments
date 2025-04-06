@@ -1,6 +1,8 @@
 import pygame
 import os
 import subprocess
+import multiprocessing
+
 
 # Monitor config from your xrandr output
 MONITORS = {
@@ -61,3 +63,7 @@ def p2():
     # Keep window open without looping
     while True:
         pygame.time.wait(1000)  # Minimal CPU usage
+
+
+multiprocessing.Process(target=p1,daemon=True).start()
+multiprocessing.Process(target=p2,daemon=True).start()
