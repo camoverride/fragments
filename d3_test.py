@@ -1,53 +1,50 @@
 import pygame
-import multiprocessing
-import os
 import subprocess
-import signal
+import os
+import time
 
-def get_monitor_geometry(name):
-    """Get x position and resolution for monitor by name"""
+# Get exact position and resolution for a monitor by name
+def get_monitor_info(name):
     try:
         output = subprocess.check_output(['xrandr', '--query']).decode()
         for line in output.splitlines():
             if name in line and ' connected' in line:
                 parts = line.split()
-                res_pos = parts[2]  # e.g. 1600x900+1920+0
-                width, height = map(int, res_pos.split('+')[0].split('x'))
-                x_pos = int(res_pos.split('+')[1])
-                return x_pos, width, height
+                geometry = parts[2 if parts[2][0].isdigit() else 3]
+                if '+' in geometry:
+                    res, xpos, _ = geometry.split('+')
+                    width, height = map(int, res.split('x'))
+                    return int(xpos), width, height
     except Exception as e:
         print(f"Error getting monitor info: {e}")
     return None
 
-def show_image(monitor_name, image_path):
-    """Display image on specified monitor"""
-    geo = get_monitor_geometry(monitor_name)
-    if not geo:
-        print(f"Monitor {monitor_name} not found!")
+def create_window(monitor_name, image_path):
+    info = get_monitor_info(monitor_name)
+    if not info:
+        print(f"Could not get info for {monitor_name}")
         return
-
-    x_pos, width, height = geo
     
-    # Set window position before init
-    os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x_pos},0"
-    os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = "0"
+    xpos, width, height = info
+    
+    # Critical X11 settings for proper fullscreen
+    os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = '0'
+    os.environ['SDL_VIDEO_WINDOW_POS'] = f"{xpos},0"
     
     pygame.init()
     try:
-        # Create borderless fullscreen window
+        # Create true borderless fullscreen window
         screen = pygame.display.set_mode(
             (width, height),
-            pygame.NOFRAME | pygame.HWSURFACE
+            pygame.NOFRAME | pygame.HWSURFACE | pygame.DOUBLEBUF
         )
         
         # Hide mouse cursor
         pygame.mouse.set_visible(False)
         
-        # Load and scale image
-        img = pygame.transform.scale(
-            pygame.image.load(image_path),
-            (width, height)
-        )
+        # Load and display image
+        img = pygame.image.load(image_path)
+        img = pygame.transform.scale(img, (width, height))
         
         clock = pygame.time.Clock()
         running = True
@@ -60,36 +57,37 @@ def show_image(monitor_name, image_path):
             pygame.display.flip()
             clock.tick(30)
             
-    except KeyboardInterrupt:
-        pass
     finally:
         pygame.quit()
 
 if __name__ == "__main__":
-    # Configure monitors by name
-    config = {
+    # Configuration - edit these to match your setup
+    MONITORS = {
         "DP-1": "face_1.jpg",
         "DVI-D-0": "face_2.jpg"
     }
     
-    # Start processes
+    # Start each window in a separate process
     processes = []
-    for name, image in config.items():
-        p = multiprocessing.Process(
-            target=show_image,
-            args=(name, image)
-        )
-        p.start()
+    for name, image in MONITORS.items():
+        p = subprocess.Popen([
+            'python3', '-c',
+            f"import pygame, os; os.environ['SDL_VIDEO_WINDOW_POS']='{get_monitor_info(name)[0]},0'; "
+            f"pygame.init(); screen=pygame.display.set_mode({get_monitor_info(name)[1:]}, pygame.NOFRAME); "
+            f"img=pygame.transform.scale(pygame.image.load('{image}'), {get_monitor_info(name)[1:]}); "
+            "clock=pygame.time.Clock(); "
+            "running=True; "
+            "while running: "
+            "    for e in pygame.event.get(): "
+            "        if e.type==pygame.QUIT or (e.type==pygame.KEYDOWN and e.key==pygame.K_ESCAPE): running=False; "
+            "    screen.blit(img, (0,0)); pygame.display.flip(); clock.tick(30); "
+            "pygame.quit()"
+        ])
         processes.append(p)
     
-    # Handle Ctrl+C gracefully
-    def signal_handler(sig, frame):
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
         for p in processes:
             p.terminate()
-        os._exit(0)
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    # Wait for processes
-    for p in processes:
-        p.join()
