@@ -12,25 +12,52 @@ MONITORS = {
 
 
 """Launch one display in its own process"""
+def p1():
+    # NVIDIA-specific optimizations
+    os.environ["__GL_SYNC_DISPLAY_DEVICE"] = "DVI-D-0"
+    os.environ["DISPLAY"] = ":0"  # Force primary X display
 
-# NVIDIA-specific optimizations
-os.environ["__GL_SYNC_DISPLAY_DEVICE"] = "DVI-D-0"
-os.environ["DISPLAY"] = ":0"  # Force primary X display
+    # Position and create window
+    os.environ['SDL_VIDEO_WINDOW_POS'] = f"0,0"
+    pygame.init()
+    screen = pygame.display.set_mode(
+        (1600, 900), 
+        pygame.NOFRAME | pygame.HWSURFACE
+    )
 
-# Position and create window
-os.environ['SDL_VIDEO_WINDOW_POS'] = f"0,0"
-pygame.init()
-screen = pygame.display.set_mode(
-    (1600, 900), 
-    pygame.NOFRAME | pygame.HWSURFACE
-)
+    # Load and display image
+    img = pygame.image.load("face_1.jpg")
+    img = pygame.transform.scale(img, (1600, 900))
+    screen.blit(img, (0, 0))
+    pygame.display.flip()
 
-# Load and display image
-img = pygame.image.load("face_1.jpg")
-img = pygame.transform.scale(img, (1600, 900))
-screen.blit(img, (0, 0))
-pygame.display.flip()
+    # Keep window open without looping
+    while True:
+        pygame.time.wait(1000)  # Minimal CPU usage
 
-# Keep window open without looping
-while True:
-    pygame.time.wait(1000)  # Minimal CPU usage
+
+
+
+
+def p2():
+    # NVIDIA-specific optimizations
+    os.environ["__GL_SYNC_DISPLAY_DEVICE"] = "DP-1"
+    os.environ["DISPLAY"] = ":0"  # Force primary X display
+
+    # Position and create window
+    os.environ['SDL_VIDEO_WINDOW_POS'] = f"1600,0"
+    pygame.init()
+    screen = pygame.display.set_mode(
+        (1600, 900), 
+        pygame.NOFRAME | pygame.HWSURFACE
+    )
+
+    # Load and display image
+    img = pygame.image.load("face_2.jpg")
+    img = pygame.transform.scale(img, (1600, 900))
+    screen.blit(img, (0, 0))
+    pygame.display.flip()
+
+    # Keep window open without looping
+    while True:
+        pygame.time.wait(1000)  # Minimal CPU usage
