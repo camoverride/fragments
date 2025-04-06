@@ -217,7 +217,8 @@ def _select_face_by_overlap(image, results, bb) -> int:
     
     return best_idx
 
-def align_eyes_horizontally(image: np.ndarray, relative_bb: object) -> tuple:
+def align_eyes_horizontally(image : np.ndarray,
+                            bb : tuple) -> tuple:
     """
     Rotate an image so that the eyes are positioned horizontally.
     This makes it much more straightforward for subsequent cropping.
@@ -228,9 +229,8 @@ def align_eyes_horizontally(image: np.ndarray, relative_bb: object) -> tuple:
     ----------
     image : np.ndarray
         An image that should contain a face.
-    relative_bb : object
-        A bounding box containing the face we care about. The object
-        should have attributes: xmin, ymin, width, height.
+    bb : tuple
+        A bounding box containing the face we care about.
     
     Returns
     -------
@@ -238,75 +238,54 @@ def align_eyes_horizontally(image: np.ndarray, relative_bb: object) -> tuple:
         A tuple of two items.
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
+        TODO: what type exactly are the mediapipe landmarks?
     """
-    # Assuming relative_bb contains values between 0 and 1
-    xmin = relative_bb.xmin * image.shape[1]
-    ymin = relative_bb.ymin * image.shape[0]
-    width = relative_bb.width * image.shape[1]
-    height = relative_bb.height * image.shape[0]
-
-    margin = 100  # margin for the ROI around the bounding box
-    # Ensure the slice indices are integers
-    roi_x1 = max(int(xmin - margin), 0)
-    roi_y1 = max(int(ymin - margin), 0)
-    roi_x2 = min(int(xmin + width + margin), image.shape[1])
-    roi_y2 = min(int(ymin + height + margin), image.shape[0])
-
-    # Extract the region of interest (ROI) from the image
-    roi_image = image[roi_y1:roi_y2, roi_x1:roi_x2]
-    
-    # Process the cropped image for face mesh
-    image_rgb = cv2.cvtColor(roi_image, cv2.COLOR_BGR2RGB)
+    # Read the image.
+    image_rgb = image #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(image_rgb)
     
     if not results.multi_face_landmarks:
         raise ValueError("Alignment phase: no face detected.")
     
-    # Extract landmarks from the first detected face
-    landmarks = results.multi_face_landmarks[0].landmark
+    # Find face mesh with maximum overlap with bb
+    best_face_idx = _select_face_by_overlap(image_rgb, results, bb)
+    landmarks = results.multi_face_landmarks[best_face_idx].landmark
     
-    # Convert landmarks to image coordinates relative to the ROI
-    roi_h, roi_w = roi_image.shape[:2]
-    landmark_points = np.array([(lm.x * roi_w, lm.y * roi_h) for lm in landmarks], dtype=np.float32)
-    
-    # Re-map landmarks to original image coordinates (before rotation)
-    landmark_points_original = []
-    for (x, y) in landmark_points:
-        x_original = int(x + roi_x1)
-        y_original = int(y + roi_y1)
-        landmark_points_original.append((x_original, y_original))
 
-    # Now calculate the rotation angle using the original image coordinates of the eyes
-    left_eye = landmark_points_original[33]  # Left eye landmark index
-    right_eye = landmark_points_original[263]  # Right eye landmark index
+
+        # Convert landmarks to image coordinates
+    h, w = image.shape[:2]
+    landmark_points = np.array([(lm.x * w, lm.y * h) for lm in landmarks], dtype=np.float32)
+    
+    # Calculate rotation angle
+    left_eye = landmark_points[33]
+    right_eye = landmark_points[263]
     dx = right_eye[0] - left_eye[0]
     dy = right_eye[1] - left_eye[1]
-    angle = np.degrees(np.arctan2(dy, dx))  # Angle to make the eyes horizontal
+    angle = np.degrees(np.arctan2(dy, dx))
     
-    # Create rotation matrix for rotating the image
-    center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the original image
+    # Create rotation matrix
+    center = (w // 2, h // 2)
     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     
-    # Rotate the image to align the eyes horizontally
-    rotated_image = cv2.warpAffine(image, rotation_matrix, (image.shape[1], image.shape[0]))
+    # Rotate image
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (w, h))
     
-    # Rotate the landmarks (add homogeneous coordinate for rotation)
-    homogeneous_landmarks = np.column_stack([np.array(landmark_points_original), np.ones(len(landmark_points_original))])
-    rotated_landmarks = (rotation_matrix @ homogeneous_landmarks.T).T
+    # Rotate landmarks (add homogeneous coordinate)
+    homogeneous_landmarks = np.column_stack([landmark_points, np.ones(len(landmark_points))])
+    rotated_points = (rotation_matrix @ homogeneous_landmarks.T).T
     
-    # Create rotated landmarks objects and convert back to relative coordinates
     # Convert back to MediaPipe landmark format
     rotated_landmarks = []
-    for i, (x, y) in enumerate(rotated_landmarks):
-        landmark = results.multi_face_landmarks[0].landmark[i]
+    for i, (x, y) in enumerate(rotated_points):
+        landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
         rotated_landmark = type(landmark)()
-        rotated_landmark.x = x / image.shape[1]
-        rotated_landmark.y = y / image.shape[0]
+        rotated_landmark.x = x / w
+        rotated_landmark.y = y / h
         rotated_landmark.z = landmark.z  # Z remains unchanged in 2D rotation
         rotated_landmarks.append(rotated_landmark)
     
     return rotated_image, rotated_landmarks
-
 
 
 def crop_image_based_on_eyes(image : np.ndarray,
@@ -442,6 +421,7 @@ def crop_align_image_based_on_eyes(image : np.ndarray,
                                              b=b)
 
     return cropped_image
+
 
 
 def is_face_looking_forward(face_landmarks: List[int],
