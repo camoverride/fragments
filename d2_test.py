@@ -60,7 +60,8 @@ import os
 # Hardcoded monitor positions from your xrandr output
 MONITOR_SETUP = {
     "DP-1": {"x": 1920, "width": 1600, "height": 900},
-    "DVI-D-0": {"x": 3520, "width": 1600, "height": 900}
+    "DVI-D-0": {"x": 3520, "width": 1600, "height": 900},
+    "HDMI-0": {"x": 0, "width": 1920, "height": 1080}
 }
 
 def display_image(monitor_name, image_path):
@@ -89,7 +90,8 @@ if __name__ == "__main__":
     # Create and start processes
     processes = [
         multiprocessing.Process(target=display_image, args=("DP-1", "face_1.jpg")),
-        multiprocessing.Process(target=display_image, args=("DVI-D-0", "face_2.jpg"))
+        multiprocessing.Process(target=display_image, args=("DVI-D-0", "face_2.jpg")),
+        multiprocessing.Process(target=display_image, args=("HDMI-0", "face_1.jpg"))
     ]
     
     for p in processes:
