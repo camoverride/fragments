@@ -89,7 +89,7 @@ def display_hdmi_0():
                 frames = np.load(npz_path)['frames']
                 current_frame = 0  # Reset to beginning
 
-            if frames:
+            if frames is not None and len(frames) > 0:
                 frame = frames[current_frame]
                 if len(frame.shape) == 2:
                     frame = np.stack((frame,) * 3, axis=-1)
