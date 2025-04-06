@@ -295,16 +295,17 @@ def align_eyes_horizontally(image: np.ndarray, relative_bb: object) -> tuple:
     rotated_landmarks = (rotation_matrix @ homogeneous_landmarks.T).T
     
     # Create rotated landmarks objects and convert back to relative coordinates
-    rotated_landmarks_objects = []
-    for i, (x, y, z) in enumerate(rotated_landmarks):
-        # Create a landmark object with the new coordinates
-        rotated_landmark = type(landmarks[0])()  # Use the same type as the original landmark
-        rotated_landmark.x = x / image.shape[1]  # Convert back to relative coordinates
-        rotated_landmark.y = y / image.shape[0]  # Convert back to relative coordinates
-        rotated_landmark.z = z  # Z-coordinate remains unchanged in 2D rotation
-        rotated_landmarks_objects.append(rotated_landmark)
+    # Convert back to MediaPipe landmark format
+    rotated_landmarks = []
+    for i, (x, y) in enumerate(rotated_landmarks):
+        landmark = results.multi_face_landmarks[0].landmark[i]
+        rotated_landmark = type(landmark)()
+        rotated_landmark.x = x / image.shape[1]
+        rotated_landmark.y = y / image.shape[0]
+        rotated_landmark.z = landmark.z  # Z remains unchanged in 2D rotation
+        rotated_landmarks.append(rotated_landmark)
     
-    return rotated_image, rotated_landmarks_objects
+    return rotated_image, rotated_landmarks
 
 
 
