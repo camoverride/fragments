@@ -1041,6 +1041,7 @@ def get_faces_from_camera(camera_type : str,
     frame_data = face_detection.process(frame_rgb)
     # Look for faces in the frame
     frame_data = face_detection.process(frame)
+    boxes, probs = mtcnn.detect(frame)
 
     # If there are no faces, return False.
     if not frame_data.detections:
