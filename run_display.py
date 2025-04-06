@@ -415,33 +415,16 @@ if __name__ == "__main__":
         config = yaml.safe_load(file)
 
     # Get environment in SH mode
-    os.environ["DISPLAY"] = ":0"
+    # os.environ["DISPLAY"] = ":0"
 
-    # Get the starting default image
-    starting_image = cv2.imread("cam_smith.png")
-    starting_image = cv2.resize(starting_image,
-                                (config["width_output"], config["height_output"]))
-
-    if config["camera_type"] == "picam":
-        logging.info("STARTING SCRIPT - picam mode!")
-        # Rotate the screen
-        os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
+    # if config["camera_type"] == "picam":
+    #     logging.info("STARTING SCRIPT - picam mode!")
+    #     # Rotate the screen
+    #     os.system(f"WAYLAND_DISPLAY=wayland-0 wlr-randr --output HDMI-A-1 --transform 90")
         
-        # Hide the mouse
-        os.system("unclutter -idle 0 &")
+    #     # Hide the mouse
+    #     os.system("unclutter -idle 0 &")
 
-        # Set up the display
-        cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", starting_image)
-        cv2.waitKey(1000)
-    
-    else:
-        # Set up the display
-        cv2.namedWindow("Display Image", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty("Display Image", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Display Image", starting_image)
-        cv2.waitKey(1000)
 
     while True:
         try:
