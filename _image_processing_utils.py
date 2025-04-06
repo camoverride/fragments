@@ -23,7 +23,7 @@ cv2.waitKey(1000) # pause so first frame isn't dark
 
 # Initialize detection.
 face_detection = \
-    mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.2)
+    mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5)
 
 face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True,
                                             max_num_faces=1,
@@ -961,6 +961,9 @@ def get_faces_from_camera(camera_type : str,
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
     
+
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_data = face_detection.process(frame_rgb)
     # Look for faces in the frame
     frame_data = face_detection.process(frame)
 
