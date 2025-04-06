@@ -20,8 +20,8 @@ logging.basicConfig(
 # Initialize image capture.
 cap = cv2.VideoCapture(0)
 # Set to the max dims supported by the webcam
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # Set width
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # Set height
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # Set width
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)  # Set height
 cv2.waitKey(1000) # pause so first frame isn't dark
 
 # Initialize detection.
