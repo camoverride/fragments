@@ -69,8 +69,7 @@ def display_image(monitor_name, image_path):
     os.environ['SDL_VIDEO_WINDOW_POS'] = f"{m['x']},0"
     
     pygame.init()
-    screen = pygame.display.set_mode((m['width'], m['height']), pygame.FULLSCREEN | pygame.NOFRAME | pygame.HWSURFACE,
-        display=0)
+    screen = pygame.display.set_mode((m['width'], m['height']), )
     img = pygame.transform.scale(pygame.image.load(image_path), (m['width'], m['height']))
     
     clock = pygame.time.Clock()
