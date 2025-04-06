@@ -992,65 +992,65 @@ def get_faces_from_camera(camera_type: str, debug: bool):
         relative_bbs.append(RelativeBoundingBox(relative_xmin, relative_ymin, relative_width, relative_height))
 
     return frame, relative_bbs
-# def get_faces_from_camera(camera_type : str,
-#                           debug : bool):
-#     """
-#     If a face is detected, a tuple (np.ndarray, list) is
-#     returned, where the first element is a frame from the
-#     webcam, and the second element is a list of all the
-#     bounding boxes surrounding faces. If no faces are
-#     deteceted, a tuple of (False, False) is returned.
+def get_faces_from_camera(camera_type : str,
+                          debug : bool):
+    """
+    If a face is detected, a tuple (np.ndarray, list) is
+    returned, where the first element is a frame from the
+    webcam, and the second element is a list of all the
+    bounding boxes surrounding faces. If no faces are
+    deteceted, a tuple of (False, False) is returned.
 
-#     NOTE: These bounding boxes can then be utilized with
-#     the function `simple_crop_face`
+    NOTE: These bounding boxes can then be utilized with
+    the function `simple_crop_face`
 
-#     Parameters
-#     ----------
-#     debug : bool
-#         Shows intermediate processing steps as images
-#         which pause execution until a key is pressed.
+    Parameters
+    ----------
+    debug : bool
+        Shows intermediate processing steps as images
+        which pause execution until a key is pressed.
 
-#     Returns
-#     -------
-#     tuple
-#         A tuple of (False, False) if no faces are detected.
-#         A tuple of (np.ndarray, list) there the first element
-#         is a frame from the webcam, and the second element
-#         is a list of bounding boxes that contain faces.
-#     """
-#     # Give camera time to warm up.
-#     time.sleep(0.35)
+    Returns
+    -------
+    tuple
+        A tuple of (False, False) if no faces are detected.
+        A tuple of (np.ndarray, list) there the first element
+        is a frame from the webcam, and the second element
+        is a list of bounding boxes that contain faces.
+    """
+    # Give camera time to warm up.
+    time.sleep(0.35)
 
-#     if camera_type == "webcam":
-#         # Get a frame from the webcam.
-#         ret, frame = cap.read()
-#         if not ret:
-#             raise ValueError("Failed to capture image from webcam.")
-#     elif camera_type == "picam":
-#         frame = picam2.capture_array()
+    if camera_type == "webcam":
+        # Get a frame from the webcam.
+        ret, frame = cap.read()
+        if not ret:
+            raise ValueError("Failed to capture image from webcam.")
+    elif camera_type == "picam":
+        frame = picam2.capture_array()
 
-#     if debug:
-#         cv2.namedWindow("Camera cap", cv2.WND_PROP_FULLSCREEN)
-#         cv2.setWindowProperty("Camera cap", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-#         cv2.imshow("Camera cap", frame)
-#         cv2.waitKey(3000)
-#         cv2.destroyAllWindows()
+    if debug:
+        cv2.namedWindow("Camera cap", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Camera cap", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Camera cap", frame)
+        cv2.waitKey(3000)
+        cv2.destroyAllWindows()
     
 
-#     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#     frame_data = face_detection.process(frame_rgb)
-#     # Look for faces in the frame
-#     frame_data = face_detection.process(frame)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_data = face_detection.process(frame_rgb)
+    # Look for faces in the frame
+    frame_data = face_detection.process(frame)
 
-#     # If there are no faces, return False.
-#     if not frame_data.detections:
-#         return False, False
+    # If there are no faces, return False.
+    if not frame_data.detections:
+        return False, False
 
-#     # If there are faces, return the frame and listf of bounding boxes.
-#     relative_bbs = [detection.location_data.relative_bounding_box \
-#             for detection in frame_data.detections]
+    # If there are faces, return the frame and listf of bounding boxes.
+    relative_bbs = [detection.location_data.relative_bounding_box \
+            for detection in frame_data.detections]
 
-#     return frame, relative_bbs
+    return frame, relative_bbs
 
 
 def quantify_blur(image):
