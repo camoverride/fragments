@@ -23,6 +23,7 @@ def display_dvi_d_0():
     )
     
     img = pygame.image.load(DVI_D_0['image'])
+    img = np.rot90(img)
     img = pygame.transform.scale(img, (DVI_D_0['width'], DVI_D_0['height']))
     screen.blit(img, (0, 0))
     pygame.display.flip()
