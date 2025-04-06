@@ -241,22 +241,20 @@ def align_eyes_horizontally(image: np.ndarray,
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
     """
-    # Extract bounding box information from relative_bb
-    xmin = relative_bb.xmin
-    ymin = relative_bb.ymin
-    width = relative_bb.width
-    height = relative_bb.height
-    
-    # Define the margin to pad the bounding box
-    margin = 100
-    
-    # Define the region of interest with margin
-    roi_x1 = max(xmin - margin, 0)
-    roi_y1 = max(ymin - margin, 0)
-    roi_x2 = min(xmin + width + margin, image.shape[1])
-    roi_y2 = min(ymin + height + margin, image.shape[0])
-    
-    # Crop the region of interest
+    # Assuming relative_bb contains values between 0 and 1
+    xmin = relative_bb.xmin * image.shape[1]
+    ymin = relative_bb.ymin * image.shape[0]
+    width = relative_bb.width * image.shape[1]
+    height = relative_bb.height * image.shape[0]
+
+    margin=100
+    # Ensure the slice indices are integers
+    roi_x1 = max(int(xmin - margin), 0)
+    roi_y1 = max(int(ymin - margin), 0)
+    roi_x2 = min(int(xmin + width + margin), image.shape[1])
+    roi_y2 = min(int(ymin + height + margin), image.shape[0])
+
+    # Extract the region of interest (ROI) from the image
     roi_image = image[roi_y1:roi_y2, roi_x1:roi_x2]
     
     # Process the cropped image for face mesh
