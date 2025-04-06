@@ -1,42 +1,49 @@
 import pygame
-import subprocess
+import multiprocessing
+import os
 
-# Initialize Pygame
-pygame.init()
 
-# Load images
-face1 = pygame.image.load('face_1.jpg')
-face2 = pygame.image.load('face_2.jpg')
 
-# Get monitor positions using xrandr (Linux specific)
-def get_monitor_positions():
-    output = subprocess.check_output(['xrandr']).decode()
-    positions = {}
-    for line in output.splitlines():
-        if ' connected' in line:
-            parts = line.split()
-            name = parts[0]
-            if '+' in parts[2]:  # e.g., 1600x900+1920+0
-                x_pos = int(parts[2].split('+')[1])
-                positions[name] = x_pos
-    return positions
+def show_image(display_num, resolution, image_path):
+    """
+    Display one image fullscreen on one monitor
+    """
+    os.environ["DISPLAY"] = f":0.{display_num}"
+    pygame.init()
+    screen = pygame.display.set_mode(resolution, pygame.FULLSCREEN, display=display_num)
+    img = pygame.transform.scale(pygame.image.load(image_path), resolution)
 
-monitor_pos = get_monitor_positions()
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                running = False
+        screen.blit(img, (0, 0))
+        pygame.display.flip()
+        clock.tick(30)
 
-# Create one large virtual display spanning all monitors
-total_width = 5120  # From your xrandr output (1600 + 1920 + 1600)
-screen = pygame.display.set_mode((total_width, 900))
+    pygame.quit()
 
-# Main loop
-running = True
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-            running = False
-    
-    # Display images at correct positions
-    screen.blit(pygame.transform.scale(face1, (1600, 900)), (monitor_pos['DP-1'], 0))
-    screen.blit(pygame.transform.scale(face2, (1600, 900)), (monitor_pos['DVI-D-0'], 0))
-    pygame.display.flip()
 
-pygame.quit()
+
+if __name__ == "__main__":
+    # Define monitor 1 (DP-1)
+    p1 = multiprocessing.Process(
+        target=show_image,
+        args=(0, (1600, 900), "face_1.jpg")  # display_num, resolution, image
+    )
+
+    # Define monitor 2 (DVI-D-0)
+    p2 = multiprocessing.Process(
+        target=show_image,
+        args=(1, (1600, 900), "face_2.jpg")
+    )
+
+    # Start both processes
+    p1.start()
+    p2.start()
+
+    # Wait for both to finish
+    p1.join()
+    p2.join()
