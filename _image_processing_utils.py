@@ -241,6 +241,7 @@ def align_eyes_horizontally(image: np.ndarray,
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
     """
+    print(relative_bb)
     # Assuming relative_bb contains values between 0 and 1
     xmin = relative_bb.xmin * image.shape[1]
     ymin = relative_bb.ymin * image.shape[0]
@@ -427,7 +428,6 @@ def crop_align_image_based_on_eyes(image : np.ndarray,
     np.ndarray
         The cropped image.
     """
-    print(bb)
     rotated_image, rotated_landmarks = align_eyes_horizontally(image, bb)
     cropped_image = crop_image_based_on_eyes(image=rotated_image,
                                              landmarks=rotated_landmarks,
