@@ -427,6 +427,7 @@ def crop_align_image_based_on_eyes(image : np.ndarray,
     np.ndarray
         The cropped image.
     """
+    print(bb)
     rotated_image, rotated_landmarks = align_eyes_horizontally(image, bb)
     cropped_image = crop_image_based_on_eyes(image=rotated_image,
                                              landmarks=rotated_landmarks,
