@@ -296,7 +296,9 @@ def align_eyes_horizontally(image: np.ndarray,
     # Convert back to original image coordinates
     rotated_landmarks = []
     for i, (x, y) in enumerate(rotated_points):
-        landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
+        # landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
+        landmark = results.multi_face_landmarks[0].landmark[i]
+
         rotated_landmark = type(landmark)()
         rotated_landmark.x = (x + roi_x1) / image.shape[1]  # Convert to original coordinates
         rotated_landmark.y = (y + roi_y1) / image.shape[0]  # Convert to original coordinates
