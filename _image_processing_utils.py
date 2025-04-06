@@ -217,9 +217,7 @@ def _select_face_by_overlap(image, results, bb) -> int:
     
     return best_idx
 
-
-def align_eyes_horizontally(image: np.ndarray,
-                            relative_bb: object) -> tuple:
+def align_eyes_horizontally(image: np.ndarray, relative_bb: object) -> tuple:
     """
     Rotate an image so that the eyes are positioned horizontally.
     This makes it much more straightforward for subsequent cropping.
@@ -241,14 +239,13 @@ def align_eyes_horizontally(image: np.ndarray,
         The first is a np.ndarray rotated image.
         The second is the rotated landmarks from mediapipe.
     """
-    print(relative_bb)
     # Assuming relative_bb contains values between 0 and 1
     xmin = relative_bb.xmin * image.shape[1]
     ymin = relative_bb.ymin * image.shape[0]
     width = relative_bb.width * image.shape[1]
     height = relative_bb.height * image.shape[0]
 
-    margin=100
+    margin = 100  # margin for the ROI around the bounding box
     # Ensure the slice indices are integers
     roi_x1 = max(int(xmin - margin), 0)
     roi_y1 = max(int(ymin - margin), 0)
@@ -265,47 +262,50 @@ def align_eyes_horizontally(image: np.ndarray,
     if not results.multi_face_landmarks:
         raise ValueError("Alignment phase: no face detected.")
     
-    # Find face mesh with maximum overlap with bb
-    # best_face_idx = _select_face_by_overlap(roi_image, results, (xmin, ymin, width, height))
-    # landmarks = results.multi_face_landmarks[best_face_idx].landmark
+    # Extract landmarks from the first detected face
     landmarks = results.multi_face_landmarks[0].landmark
-
     
-    # Convert landmarks to image coordinates (relative to the cropped ROI)
+    # Convert landmarks to image coordinates relative to the ROI
     roi_h, roi_w = roi_image.shape[:2]
     landmark_points = np.array([(lm.x * roi_w, lm.y * roi_h) for lm in landmarks], dtype=np.float32)
     
-    # Calculate rotation angle
-    left_eye = landmark_points[33]
-    right_eye = landmark_points[263]
+    # Re-map landmarks to original image coordinates (before rotation)
+    landmark_points_original = []
+    for (x, y) in landmark_points:
+        x_original = int(x + roi_x1)
+        y_original = int(y + roi_y1)
+        landmark_points_original.append((x_original, y_original))
+
+    # Now calculate the rotation angle using the original image coordinates of the eyes
+    left_eye = landmark_points_original[33]  # Left eye landmark index
+    right_eye = landmark_points_original[263]  # Right eye landmark index
     dx = right_eye[0] - left_eye[0]
     dy = right_eye[1] - left_eye[1]
-    angle = np.degrees(np.arctan2(dy, dx))
+    angle = np.degrees(np.arctan2(dy, dx))  # Angle to make the eyes horizontal
     
-    # Create rotation matrix
-    center = (roi_w // 2, roi_h // 2)
+    # Create rotation matrix for rotating the image
+    center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the original image
     rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     
-    # Rotate image
-    rotated_image = cv2.warpAffine(roi_image, rotation_matrix, (roi_w, roi_h))
+    # Rotate the image to align the eyes horizontally
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (image.shape[1], image.shape[0]))
     
-    # Rotate landmarks (add homogeneous coordinate)
-    homogeneous_landmarks = np.column_stack([landmark_points, np.ones(len(landmark_points))])
-    rotated_points = (rotation_matrix @ homogeneous_landmarks.T).T
+    # Rotate the landmarks (add homogeneous coordinate for rotation)
+    homogeneous_landmarks = np.column_stack([np.array(landmark_points_original), np.ones(len(landmark_points_original))])
+    rotated_landmarks = (rotation_matrix @ homogeneous_landmarks.T).T
     
-    # Convert back to original image coordinates
-    rotated_landmarks = []
-    for i, (x, y) in enumerate(rotated_points):
-        # landmark = results.multi_face_landmarks[best_face_idx].landmark[i]
-        landmark = results.multi_face_landmarks[0].landmark[i]
+    # Create rotated landmarks objects and convert back to relative coordinates
+    rotated_landmarks_objects = []
+    for i, (x, y, z) in enumerate(rotated_landmarks):
+        # Create a landmark object with the new coordinates
+        rotated_landmark = type(landmarks[0])()  # Use the same type as the original landmark
+        rotated_landmark.x = x / image.shape[1]  # Convert back to relative coordinates
+        rotated_landmark.y = y / image.shape[0]  # Convert back to relative coordinates
+        rotated_landmark.z = z  # Z-coordinate remains unchanged in 2D rotation
+        rotated_landmarks_objects.append(rotated_landmark)
+    
+    return rotated_image, rotated_landmarks_objects
 
-        rotated_landmark = type(landmark)()
-        rotated_landmark.x = (x + roi_x1) / image.shape[1]  # Convert to original coordinates
-        rotated_landmark.y = (y + roi_y1) / image.shape[0]  # Convert to original coordinates
-        rotated_landmark.z = landmark.z  # Z remains unchanged in 2D rotation
-        rotated_landmarks.append(rotated_landmark)
-    
-    return rotated_image, rotated_landmarks
 
 
 def crop_image_based_on_eyes(image : np.ndarray,
