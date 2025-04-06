@@ -918,67 +918,142 @@ def create_composite_image(image_list: List[np.ndarray], num_squares_height: int
 
 
 
+from facenet_pytorch import MTCNN
 
 
-def get_faces_from_camera(camera_type : str,
-                          debug : bool):
+mtcnn = MTCNN(min_face_size=300,
+              scale_factor=0.709,
+              use_cuda=True)
+
+
+class RelativeBoundingBox:
+    def __init__(self, xmin, ymin, width, height):
+        self.xmin = xmin
+        self.ymin = ymin
+        self.width = width
+        self.height = height
+
+def get_faces_from_camera(camera_type: str, debug: bool):
     """
-    If a face is detected, a tuple (np.ndarray, list) is
-    returned, where the first element is a frame from the
-    webcam, and the second element is a list of all the
-    bounding boxes surrounding faces. If no faces are
-    deteceted, a tuple of (False, False) is returned.
-
-    NOTE: These bounding boxes can then be utilized with
-    the function `simple_crop_face`
+    Detects faces from the camera feed and returns a frame with bounding boxes.
 
     Parameters
     ----------
+    camera_type : str
+        The type of camera being used ('webcam' or 'picam').
     debug : bool
-        Shows intermediate processing steps as images
-        which pause execution until a key is pressed.
+        If True, display the frame in fullscreen.
 
     Returns
     -------
     tuple
-        A tuple of (False, False) if no faces are detected.
-        A tuple of (np.ndarray, list) there the first element
-        is a frame from the webcam, and the second element
-        is a list of bounding boxes that contain faces.
+        A tuple with (np.ndarray, list) where the first element is the captured frame and the second is a list of relative bounding boxes.
     """
-    # Give camera time to warm up.
+
+    # Give camera time to warm up
     time.sleep(0.35)
 
     if camera_type == "webcam":
-        # Get a frame from the webcam.
+        # Open the webcam
+        cap = cv2.VideoCapture(0)
         ret, frame = cap.read()
         if not ret:
             raise ValueError("Failed to capture image from webcam.")
     elif camera_type == "picam":
-        frame = picam2.capture_array()
+        # Use picamera (this part would depend on your actual setup)
+        # frame = picam2.capture_array()
+        pass
 
+    # If in debug mode, display the frame
     if debug:
-        cv2.namedWindow("Camera cap", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty("Camera cap", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Camera cap", frame)
         cv2.waitKey(3000)
         cv2.destroyAllWindows()
-    
 
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_data = face_detection.process(frame_rgb)
-    # Look for faces in the frame
-    frame_data = face_detection.process(frame)
+    # Detect faces using MTCNN
+    boxes, probs = mtcnn.detect(frame)
 
-    # If there are no faces, return False.
-    if not frame_data.detections:
+    # If no faces are detected, return False
+    if boxes is None:
         return False, False
 
-    # If there are faces, return the frame and listf of bounding boxes.
-    relative_bbs = [detection.location_data.relative_bounding_box \
-            for detection in frame_data.detections]
+    # Convert absolute bounding boxes to relative bounding boxes
+    height, width, _ = frame.shape
+    relative_bbs = []
+    
+    for box in boxes:
+        # Each box is a tuple (x_min, y_min, x_max, y_max)
+        xmin, ymin, xmax, ymax = box
+
+        # Normalize to get relative bounding boxes
+        relative_xmin = xmin / width
+        relative_ymin = ymin / height
+        relative_width = (xmax - xmin) / width
+        relative_height = (ymax - ymin) / height
+        
+        # Create RelativeBoundingBox object
+        relative_bbs.append(RelativeBoundingBox(relative_xmin, relative_ymin, relative_width, relative_height))
 
     return frame, relative_bbs
+# def get_faces_from_camera(camera_type : str,
+#                           debug : bool):
+#     """
+#     If a face is detected, a tuple (np.ndarray, list) is
+#     returned, where the first element is a frame from the
+#     webcam, and the second element is a list of all the
+#     bounding boxes surrounding faces. If no faces are
+#     deteceted, a tuple of (False, False) is returned.
+
+#     NOTE: These bounding boxes can then be utilized with
+#     the function `simple_crop_face`
+
+#     Parameters
+#     ----------
+#     debug : bool
+#         Shows intermediate processing steps as images
+#         which pause execution until a key is pressed.
+
+#     Returns
+#     -------
+#     tuple
+#         A tuple of (False, False) if no faces are detected.
+#         A tuple of (np.ndarray, list) there the first element
+#         is a frame from the webcam, and the second element
+#         is a list of bounding boxes that contain faces.
+#     """
+#     # Give camera time to warm up.
+#     time.sleep(0.35)
+
+#     if camera_type == "webcam":
+#         # Get a frame from the webcam.
+#         ret, frame = cap.read()
+#         if not ret:
+#             raise ValueError("Failed to capture image from webcam.")
+#     elif camera_type == "picam":
+#         frame = picam2.capture_array()
+
+#     if debug:
+#         cv2.namedWindow("Camera cap", cv2.WND_PROP_FULLSCREEN)
+#         cv2.setWindowProperty("Camera cap", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+#         cv2.imshow("Camera cap", frame)
+#         cv2.waitKey(3000)
+#         cv2.destroyAllWindows()
+    
+
+#     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#     frame_data = face_detection.process(frame_rgb)
+#     # Look for faces in the frame
+#     frame_data = face_detection.process(frame)
+
+#     # If there are no faces, return False.
+#     if not frame_data.detections:
+#         return False, False
+
+#     # If there are faces, return the frame and listf of bounding boxes.
+#     relative_bbs = [detection.location_data.relative_bounding_box \
+#             for detection in frame_data.detections]
+
+#     return frame, relative_bbs
 
 
 def quantify_blur(image):
