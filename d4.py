@@ -98,7 +98,7 @@ def display_hdmi_0():
         if len(frame.shape) == 2:  # Grayscale to RGB
             frame = np.stack((frame,)*3, axis=-1)
         frame = frame[..., ::-1]  # RGB to BGR (fixes blue tint)
-        
+        frame = np.fliplr(frame)
         surf = pygame.surfarray.make_surface(frame)
         surf = pygame.transform.scale(surf, (HDMI_0['width'], HDMI_0['height']))
         screen.blit(surf, (0, 0))
