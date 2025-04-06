@@ -7,7 +7,8 @@ import numpy as np
 import yaml
 import logging
 import time
-
+import os
+import tempfile
 
 
 # Set up basic logging
@@ -47,6 +48,39 @@ if config["camera_type"] == "picam":
     
     picam2.start()
 
+
+
+def save_atomic_npz(filename, frames):
+    """Save frames EXACTLY as in your original: `np.savez('animation.npz', frames=animated_frames)`"""
+    temp_dir = os.path.dirname(os.path.abspath(filename))
+    with tempfile.NamedTemporaryFile(dir=temp_dir, suffix='.npz', delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+        np.savez(tmp_path, frames=frames)  # Preserve original structure
+    
+    # Atomic replace
+    try:
+        os.replace(tmp_path, filename)
+    except:
+        os.remove(tmp_path)
+        raise
+
+
+
+def save_image_atomically(filename, image):
+    """Save an image atomically to avoid partial/corrupted files."""
+    # Create a temp file in the same directory (ensures atomic rename works)
+    temp_dir = os.path.dirname(os.path.abspath(filename))
+    with tempfile.NamedTemporaryFile(dir=temp_dir, suffix=".jpg", delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+        cv2.imwrite(tmp_path, image)  # Write image to temp file
+    
+    # Atomic rename (works on Unix; Windows requires extra care)
+    try:
+        os.replace(tmp_path, filename)  # Atomic on Unix
+    except:
+        os.remove(tmp_path)  # Clean up temp file if rename fails
+        raise  # Re-raise the exception
+    
 
 def get_face_landmarks(image: np.ndarray) -> List[List[int]]:
     """

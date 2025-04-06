@@ -1,19 +1,19 @@
 # Camera type
-camera_type: picam
+camera_type: webcam
 
 # Dataset parameters
-face_memory: 8 # How many faces will be part of the collage?
-embedding_memory: 3 # How many embeddings are remembered? If `embedding_memory` < `face_memory`, then repeats are allowed
+face_memory: 3 # How many faces will be part of the collage?
+embedding_memory: 2 # How many embeddings are remembered? If `embedding_memory` < `face_memory`, then repeats are allowed
 tolerance: 0.6 # Face recognition tolerance.
 
 # Image processing parameters
-blur_threshold: 250 # Definitely check on this - depends on camera (50 - 200)
-min_width: 500
+blur_threshold: 800 # Definitely check on this - depends on camera (50 - 200)
+min_width: 100
 margin_fraction: 0.6 # This might need to be wider. NOTE: source of bugs!
 height_output: 1920 # Should be same as monitor height :`wlr-randr`
 width_output: 1080 # Should be same as monitor width: `wlr-randr`
-check_centering: True # Checks if the face is centered
-check_forward: True # Checks if the face is looking forward
+check_centering: False # Checks if the face is centered
+check_forward: False # Checks if the face is looking forward
 centering_sensitivity : 0.2
 
 # Margins of final output image. NOTE: highly dependent on `margin_fraction`

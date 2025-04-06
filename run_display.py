@@ -10,16 +10,17 @@ import face_recognition
 import mediapipe as mp
 import numpy as np
 
+from _api_utils import image_to_video_api
 from _image_processing_utils import simple_crop_face, quantify_blur, is_face_wide_enough, \
 is_face_centered, get_faces_from_camera, get_face_landmarks, get_additional_landmarks, \
     morph_align_face, is_face_looking_forward, crop_align_image_based_on_eyes, \
-        get_average_face, is_face_well_positioned
+        get_average_face, is_face_well_positioned, save_image_atomically, save_atomic_npz
 
 
 
 # Set up basic logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     stream=sys.stdout,
     force=True,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -335,42 +336,49 @@ def collect_faces(camera_type : str,
 
             # If faces have aready been analyzed
             if processed_faces and processed_face_landmarks:
-                # Get a copy of the global landmarks and current landmark.
-                _all_landmarks = copy.deepcopy(processed_face_landmarks)
-                _all_landmarks.extend([current_face_all_landmarks])
+                try:
+                    # Get a copy of the global landmarks and current landmark.
+                    _all_landmarks = copy.deepcopy(processed_face_landmarks)
+                    _all_landmarks.extend([current_face_all_landmarks])
 
-                # Get a copy of the global faces and current face.
-                _processed_faces = copy.deepcopy(processed_faces)
-                _processed_faces.extend([current_face])
+                    # Get a copy of the global faces and current face.
+                    _processed_faces = copy.deepcopy(processed_faces)
+                    _processed_faces.extend([current_face])
 
-                # Average the landmarks together.
-                average_landmarks = np.mean(_all_landmarks, 
-                                            axis=0).astype(int).tolist()
+                    # Average the landmarks together.
+                    average_landmarks = np.mean(_all_landmarks, 
+                                                axis=0).astype(int).tolist()
 
-                # Morph-align the faces to the averaged landmarks.
-                morph_aligned_faces = []
+                    # Morph-align the faces to the averaged landmarks.
+                    morph_aligned_faces = []
 
-                for face, landmarks in zip(_processed_faces, _all_landmarks):
-                    morphed_face = \
-                        morph_align_face(source_face=face,
-                                        source_face_landmarks=landmarks,
-                                        target_face_landmarks=average_landmarks,
-                                        triangulation_indexes=None)
+                    for face, landmarks in zip(_processed_faces, _all_landmarks):
+                        morphed_face = \
+                            morph_align_face(source_face=face,
+                                            source_face_landmarks=landmarks,
+                                            target_face_landmarks=average_landmarks,
+                                            triangulation_indexes=None)
+                        
+                        morph_aligned_faces.append(morphed_face)
+
+                    # Create an average face image for this dataset.
+                    average_face = get_average_face(morph_aligned_faces)
+
+                    # Get the animated version
+                    animated_frames = image_to_video_api(api_url="http://127.0.0.1:5000/animate-image",
+                                                         image=average_face)
                     
-                    morph_aligned_faces.append(morphed_face)
+                    if not animated_frames:
+                        return False
 
-                # Create an average face image for this dataset.
-                average_face = get_average_face(morph_aligned_faces)
-
-                # Finally, Display it!
-                logging.info("Displaying a face!")
-                cv2.imshow("Display Image", average_face)
-                cv2.waitKey(30)
+                except Exception as e:
+                    logging.warning("There was an error morph-aligning. The face has not been saved")
+                    logging.warning(e)
+                    return False
 
             # This is the first run
             else:
-                logging.info("Showing first face!")
-                cv2.imshow("Display Image", current_face)
+                logging.info("Not enough faces have been accumulated yet!")
                 cv2.waitKey(30)
 
             # Track everything!
@@ -387,6 +395,14 @@ def collect_faces(camera_type : str,
                 processed_face_landmarks = processed_face_landmarks[:face_memory]
                 recent_embeddings = recent_embeddings[:embedding_memory]
 
+            if len(processed_faces) >= 2:
+                # Save images atomically
+                save_image_atomically("face_1.jpg", processed_faces[0])
+                save_image_atomically("face_2.jpg", processed_faces[1])
+
+                # Save NPZ atomically
+                save_atomic_npz("animation.npz", animated_frames)
+
 
     except Exception as e:
         logging.warning("TOP LEVEL ERROR! %s", exc_info=True)
@@ -402,7 +418,7 @@ if __name__ == "__main__":
     os.environ["DISPLAY"] = ":0"
 
     # Get the starting default image
-    starting_image = cv2.imread("starting_image_900_1600.png")
+    starting_image = cv2.imread("cam_smith.png")
     starting_image = cv2.resize(starting_image,
                                 (config["width_output"], config["height_output"]))
 
