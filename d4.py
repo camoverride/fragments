@@ -25,7 +25,7 @@ def display_dvi_d_0():
     img = pygame.image.load(DVI_D_0['image'])
     img = pygame.transform.scale(img, (DVI_D_0['width'], DVI_D_0['height']))
     screen.blit(img, (0, 0))
-    # pygame.display.flip()
+    pygame.display.flip()
     
     while True:
         pygame.time.wait(1000)
@@ -45,7 +45,7 @@ def display_dp_1():
     img = pygame.image.load(DP_1['image'])
     img = pygame.transform.scale(img, (DP_1['width'], DP_1['height']))
     screen.blit(img, (0, 0))
-    # pygame.display.flip()
+    pygame.display.flip()
     
     while True:
         pygame.time.wait(1000)
