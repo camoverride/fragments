@@ -1043,15 +1043,36 @@ def get_faces_from_camera(camera_type : str,
     frame_data = face_detection.process(frame)
     boxes, probs = mtcnn.detect(frame)
 
-    # If there are no faces, return False.
-    if not frame_data.detections:
-        return False, False
 
-    # If there are faces, return the frame and listf of bounding boxes.
-    relative_bbs = [detection.location_data.relative_bounding_box \
-            for detection in frame_data.detections]
+    # Convert absolute bounding boxes to relative bounding boxes
+    height, width, _ = frame.shape
+    relative_bbs = []
+    if boxes is None:
+        return False
+    
+    for box in boxes:
+        # Each box is a tuple (x_min, y_min, x_max, y_max)
+        xmin, ymin, xmax, ymax = box
+
+        # Normalize to get relative bounding boxes
+        relative_xmin = xmin / width
+        relative_ymin = ymin / height
+        relative_width = (xmax - xmin) / width
+        relative_height = (ymax - ymin) / height
+        
+        # Create RelativeBoundingBox object
+        relative_bbs.append(RelativeBoundingBox(relative_xmin, relative_ymin, relative_width, relative_height))
 
     return frame, relative_bbs
+    # If there are no faces, return False.
+    # if not frame_data.detections:
+    #     return False, False
+
+    # # If there are faces, return the frame and listf of bounding boxes.
+    # relative_bbs = [detection.location_data.relative_bounding_box \
+    #         for detection in frame_data.detections]
+
+    # return frame, relative_bbs
 
 
 def quantify_blur(image):
